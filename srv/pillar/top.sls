@@ -3,4 +3,5 @@
 base:
   '*':
     - locale
-    
+    - network
+    - apt

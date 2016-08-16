@@ -7,3 +7,5 @@ base:  # environment
     - locale
     - timezone
     - openssh.config
+    - network
+    - apt.unattended
