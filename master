@@ -5,8 +5,13 @@ user: [[user]] # your current env $USER username
 pki_dir: .
 
 file_roots:
-    base:  # Environment. base is the default. 
+  base:  # Environment. base is the default. 
     - srv/salt  # path to salt state files
+    - srv/formulas/locale
+    - srv/formulas/timezone
+    - srv/formulas/hostsfile
+    - srv/formulas/openssh
+    - srv/formulas/apt
 
 failhard: true
 state_verbose: false
