@@ -13,5 +13,10 @@ file_roots:
     - srv/formulas/openssh
     - srv/formulas/apt
 
+# Configuration of a file pillar, pillar_roots is the same as state file_roots.
+pillar_roots:
+  base:
+    - srv/pillar
+
 failhard: true
 state_verbose: false
