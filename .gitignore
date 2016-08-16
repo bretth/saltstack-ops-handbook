@@ -5,5 +5,8 @@ var/*
 *.rsa
 *.pem
 
+# pillars
+internal_ipaddr
+
 # notion exports
 Export*.zip
