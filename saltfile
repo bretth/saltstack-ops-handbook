@@ -1,0 +1,6 @@
+# https://docs.saltstack.com/en/latest/topics/ssh/#define-cli-options-with-saltfile
+
+salt-ssh:
+    config_dir: .
+    extra_filerefs: # workaround for https://github.com/saltstack/salt/issues/19564
+        - salt://salt/formulas.jinja # salt:// == file_roots
