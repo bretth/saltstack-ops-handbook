@@ -10,3 +10,4 @@ base:  # environment
     - network
     - apt.unattended
     - firewall
+    - hostsfile.hostname 
