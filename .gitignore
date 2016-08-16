@@ -4,3 +4,6 @@ var/*
 # private keys
 *.rsa
 *.pem
+
+# notion exports
+Export*.zip
