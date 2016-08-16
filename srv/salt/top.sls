@@ -6,3 +6,4 @@ base:  # environment
     - packaging # single sls state file
     - locale
     - timezone
+    - openssh.config
