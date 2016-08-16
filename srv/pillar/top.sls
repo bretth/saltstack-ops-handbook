@@ -1,0 +1,5 @@
+# pillar/top
+
+base:
+  '*':
+    - locale
