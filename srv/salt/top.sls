@@ -4,3 +4,5 @@
 base:  # environment
   '*':  # target all
     - packaging # single sls state file
+    - locale
+    - timezone
