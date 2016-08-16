@@ -9,3 +9,4 @@ base:  # environment
     - openssh.config
     - network
     - apt.unattended
+    - firewall
