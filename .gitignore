@@ -1,0 +1,6 @@
+# .gitignore
+# cache and log files
+var/*
+# private keys
+*.rsa
+*.pem
