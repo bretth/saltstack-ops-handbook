@@ -3,5 +3,7 @@
 base:
   '*':
     - locale
+    - timezone
+    - openssh
     - network
     - apt
