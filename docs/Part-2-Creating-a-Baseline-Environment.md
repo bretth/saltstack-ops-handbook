@@ -4,7 +4,7 @@
 
 - [ ]  Create the directories we will require.
 
-		mkdir -p srv/salt srv/formulas srv/pillar srv/pillar-minion/hosts/salt1.example.com
+		mkdir -p srv/salt srv/formulas srv/pillar srv/pillar-files/hosts/salt1.example.com/ssh-files
 
 ## State Files
 
@@ -12,7 +12,7 @@
 
 	Salt state (.sls) files allow you to execute a series of python module functions from _salt.states_ and provide arguments to those functions but in YAML instead of python. In this simple example they will be executed in the order they are declared.
 
-		# [https://docs.saltstack.com/en/latest/ref/states/writing.html](https://docs.saltstack.com/en/latest/ref/states/writing.html) 
+		# https://docs.saltstack.com/en/latest/ref/states/writing.html
 		
 		# the short form for calling a python module function
 		# Ubuntu 16.04 pip needs python-setuptools for some packages
@@ -28,6 +28,7 @@
 		enable_saltstack_to_add_external_apt_packages: 
 			pkg.installed:
 		 	- name: python-apt
+		
 
 	The longer form is usually preferred because you can describe _why _ you are doing something without needing to comment.
 
@@ -47,7 +48,7 @@
 			base: # Environment. base is the default. 
 		 	- srv/salt # path to salt state files
 
-	You can have multiple environments (dev, staging etc) but git branches may be better for this?
+	You can have multiple environments (dev, staging etc).
 
 ## Testing State Files
 
@@ -61,10 +62,6 @@
 		# Can also add comma separated additional state files to apply
 
 	Update master to set _failhard: True _ to stop execution at the first failed state, and _state_verbose: False _ to show only changed or failed states.
-
-	But what about actual unit and integration tests?
-
-	Running a state file bears surface similarity with an integration test. Each function passes or fails and is summarised at the end of the run. What's missing is setup, teardown, and a full test runner. We'll come back to those later.
 
 ## Salt Top File
 
@@ -94,7 +91,7 @@
 
 - [ ]  Add external formula for locale, timezone, hostname, and openssh.
 
-	Salt _formula_ are simply pre-written salt states for re-use. In essense we should treat them as we would external python packages. 
+	Salt _formula_ are simply pre-written salt states for re-use. In essense we should treat them as we would external python packages.
 
 	[Salt Formulas](https://docs.saltstack.com/en/latest/topics/development/conventions/formulas.html)
 
@@ -108,15 +105,15 @@
 
 	-  _So why not just use SPM or _ _[gitfs](https://docs.saltstack.com/en/latest/topics/tutorials/gitfs.html)_ _? Why submodules? _ 
 
-		Repositories get deleted, package providers go down, and ideally you want to pin to a tagged release or revision in your requirements. 
+		Repositories get deleted, package providers go down, and ideally you want to pin to a tagged release or revision in your requirements as per python pip. 
 
-		We _could_ use gitfs but at the very least we'd want to fork the repository, and not worry about availability if there is no enterprise agreement; gitfs also has issues to workaround when used with salt-ssh.
+		We _could_ use gitfs but we'd want to fork repositories, and availability may be an issue. Gitfs backends make better sense in a scaled up environment with enterprise git availability; gitfs also has issues to workaround when used with salt-ssh.
 
 		SPM is new so most formula isn't packaged for it and it needs lots of configuration settings when the salt configuraton is not in the default location. Unfortunately I couldn't get it to work at all for the timezone-formula so it was a non-starter.
 
 		Submodules on the other hand are mature, can be pinned to a revision easily and we can store locally (and remotely) and deploy them whole, filtering out the actual .git repository. 
 
-		The pragmatic approach then is to use submodules; create a FORMULA file to leverage spm when it matures, and skip gitfs altogether.
+		The pragmatic approach then is to use submodules; create a FORMULA file to leverage spm when it matures, and skip gitfs altogether unless you know you need it.
 
 	[FORMULA File](https://docs.saltstack.com/en/latest/topics/spm/spm_formula.html#spm-formula)
 
@@ -155,7 +152,7 @@
 
 - [ ]   `touch srv/pillar/top.sls` 
 
-	Just like salt tops, pillar has a top as well that determines what pillar files are merged to a single key value store.
+	Just like salt tops, pillar has a top as well that determines what pillar files are merged to a single key value store. 
 
 		# pillar/top
 		
@@ -165,7 +162,7 @@
 
 - [ ]   `touch srv/pillar/locale.sls` to configure the locale formula state.
 
-	By convention the formula's pillar.example file should give a full example configuration. The locale.sls file will be merged with all the other pillar files so the name of the file doesn't really matter expect for consistency and clarity. 
+	By convention the formula's pillar.example file should give a full example configuration. The locale.sls file will be merged with all the other pillar files so the name of the file doesn't really matter expect for consistency and clarity*. 
 
 		locale: 
 		 present:
@@ -182,8 +179,10 @@
 	- [ ]  View the key value items to ensure you they are configured as expected
 
 			salt-ssh '*' pillar.items
-			# get a specific value
+			# ensure a specific value exists for the target
 			salt-ssh '*' pillar.get locale:default:name
+
+	*Note: Beware of name clashes with existing formula that you aren't specifically intending to overwrite.
 
 - [ ]  Append `- locale` to '*' in `srv/salt/top.sls` to use the locale state.
 
@@ -196,6 +195,7 @@
 		 - locale
 
 - [ ]  Configure timezone state
+	- [ ]  Append `- timezone` to '*' in `srv/pillar/top.sls` 
 	- [ ]   `touch srv/pillar/timezone.sls` 
 
 			timezone:
@@ -219,6 +219,7 @@
 			 PasswordAuthentication: 'no'
 			 X11Forwarding: 'no'
 
+	- [ ]  Append `- openssh` to '*' in `srv/pillar/top.sls` 
 	- [ ]  Append `- openssh.config` to '*' in `srv/salt/top.sls` .
 - [ ]  Workaround a salt-ssh [issue](https://github.com/saltstack/salt/issues/26585) finding formula jinja templates
 
@@ -232,6 +233,7 @@
 
 ## Jinja Templates
 
+- [ ]  Append `- network` to '*' in `srv/salt/top.sls` .
 - [ ]   `touch srv/salt/network.sls` 
 
 	By default state files are compiled [jinja](http://jinja.pocoo.org/docs/dev/templates/) templates with some jinja context variables thrown in, the first of which we'll use is the _pillar_ context variable.
@@ -254,7 +256,6 @@
 
 	Using _pillar['network'] _ has a weakness; if the key doesn't exist the state file fails when we apply it. There's a way around that we'll use soon, but it's fine for this mandatory setting.
 
-- [ ]  Append `- network` to '*' in `srv/salt/top.sls` .
 - [ ]  Append `- network` to '*' in `srv/pillar/top.sls` 
 - [ ]   `touch srv/pillar/network.sls` to add the configuration settings
 
@@ -266,7 +267,7 @@
 		 proto: static
 		 netmask: 255.255.0.0
 
-	You'll notice I'm missing one; internal_ipaddr. That's because it's a per minion setting. Since pillars get served to all minions, but applied only to the target ones, in some cases - particularly with sensitive data - it's better to serve data only to the targetted minion. 
+	You'll notice I'm missing one; _internal_ipaddr_ . That's because it's a per minion setting. Since pillars get served to all minions, but applied only to the target ones, in cases with sensitive data - it's better to serve data only to the targetted minion. 
 
 - [ ]  Append `- apt.unattended` to '*' in `srv/salt/top.sls` 
 - [ ]  Append `- apt` to '*' in `srv/pillar/top.sls` 
@@ -297,14 +298,14 @@
 
 	The file_tree pillar module serves directories and their children as key values pairs terminating in a file key with file contents as it's value. It can target hosts or nodegroups and gets merged with other pillars. We could use this pattern to store secrets for individual or groups of hosts, but in this case we'll use it as an overkill method for storing the private ipaddr of the host.
 
-	Note **there is a bug** with hidden binary files like *.DS_store breaking the pillar. Purge them.
+	Note **there is a bug** with hidden binary files like *.DS_Store breaking the file_tree pillar. Purge them.
 
 - [ ]  Save the internal vm network address from the hosting provider to a file
 
 		echo '[[vm_internal_ip_address]]' > srv/pillar-minion/hosts/salt1.example.com/network/internal_ipaddr
 		# pillar['network']['internal_ipaddr'] = 'file content' 
 
-	We can now _state.apply_ if you like.
+	You can now _state.apply_ if you like.
 
 [pillar modules](https://docs.saltstack.com/en/latest/ref/pillar/all/index.html)
 
@@ -312,6 +313,7 @@
 
 Up to now state files have just been written in the order they execute. Very simple, but salt also has a method to create dependencies between states called requisites. In the simple case we will use here, the _onlyif _ requisite will execute another command first to determine whether the it should execute the state function.
 
+- [ ]  Append `- firewall` to '*' in `srv/salt/top.sls` .
 - [ ]   `touch srv/salt/firewall.sls` 
 
 	If you'd looked at some of the formula we've used, state files and other configuration files can be templates that are compiled before evaluation. Here we will use a template to configure a simple firewall. 
@@ -329,6 +331,12 @@ Up to now state files have just been written in the order they execute. Very sim
 		# - Rich rule (Not implemented)
 		# - Port definition
 		# - Service definition
+		
+		# Jinja set variable using salt context and default similar to python dict get but for key trees
+		{% set internal_interface = salt['pillar.get']('network:private_network_interface') %}
+		{% set ssh_sources = salt['pillar.get']('firewall:ssh', []) %}
+		# Note the Jinja comment syntax. This code would produce an error with any missing pillar keys as with missing keys python dicts.
+		{# {% set ssh_sources = pillar['firewall']['ssh'] %} #}
 		
 		remove_all_ufw_iptable_rules_and_disable: 
 		 cmd.run: 
@@ -350,11 +358,14 @@ Up to now state files have just been written in the order they execute. Very sim
 		 - enable: true
 		
 		# an interface can be bound to a single zone
-		trust_loopback_interface:
+		trust_internal_interfaces:
 		 firewalld.bind:
 		 - name: trusted
 		 - interfaces:
 		 - lo
+		{% if internal_interface %}
+		 - {{ internal_interface }}
+		{% endif %}
 		# Jinja set variable using salt context and default [] if the pillar keys don't exist. 
 		{% set ssh_sources = salt['pillar.get']('firewall:ssh', []) %}
 		# Note the Jinja comment syntax. This code would produce an error with missing pillar keys.
@@ -391,8 +402,6 @@ Up to now state files have just been written in the order they execute. Very sim
 	Note the _pillar.get _ which operates as you'd expect from python and allows us to set a default if we prefer.
 
 	[Requisites and Other Global State Arguments](https://docs.saltstack.com/en/latest/ref/states/requisites.html)
-
-- [ ]  Append `- firewall` to '*' in `srv/salt/top.sls` .
 
 ## Minion ids
 
