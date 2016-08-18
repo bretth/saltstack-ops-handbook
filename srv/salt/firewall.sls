@@ -12,6 +12,12 @@
 #   - Port definition
 #   - Service definition
 
+# Jinja set variable using salt context and default [] if the pillar keys don't exist. 
+{% set internal_interface = salt['pillar.get']('network:private_network_interface') %}
+{% set ssh_sources = salt['pillar.get']('firewall:ssh', []) %}
+# Note the Jinja comment syntax. This code would produce an error with missing pillar keys.
+{# {% set ssh_sources = pillar['firewall']['ssh'] %} #}
+
 remove_all_ufw_iptable_rules_and_disable: 
   cmd.run: 
     - name: 'ufw --force reset'
@@ -32,15 +38,14 @@ start_firewalld:
     - enable: true
 
 # an interface can be bound to a single zone
-trust_loopback_interface:
+trust_internal_interfaces:
   firewalld.bind:
     - name: trusted
     - interfaces:
       - lo
-# Jinja set variable using salt context and default [] if the pillar keys don't exist. 
-{% set ssh_sources = salt['pillar.get']('firewall:ssh', []) %}
-# Note the Jinja comment syntax. This code would produce an error with missing pillar keys.
-{# {% set ssh_sources = pillar['firewall']['ssh'] %} #}
+{% if internal_interface %}
+      - {{ internal_interface }}
+{% endif %}
 
 # one or more sources can be bound to a single firewalld zone 
 {% if ssh_sources %}
