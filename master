@@ -10,3 +10,7 @@ ssh_list_nodegroups:
 nodegroups:
   test: test-salt1.example.com
 
+file_roots:
+  base:  # Environment. base is the default. 
+    - srv/salt/example-com  # path to a package distribution
+
