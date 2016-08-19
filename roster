@@ -1,3 +1,3 @@
 # https://docs.saltstack.com/en/latest/topics/ssh/roster.html
-salt1.example.com:  # the minion id
-    host: salt1.example.com # the simplest host config
+test-salt1.example.com:  # the minion id
+    host: test-salt1.example.com # the simplest host config
