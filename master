@@ -14,5 +14,5 @@ state_output: changes
 
 file_roots:
   base:  # Environment. base is the default. 
-    - srv/salt/example-com  # path to a package distribution
+    - srv/salt  # path to a package distribution
 
