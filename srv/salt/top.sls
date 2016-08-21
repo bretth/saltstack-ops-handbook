@@ -3,6 +3,7 @@
 
 base:  # environment
   '*': # match all minions
+    - network
   test:  # group to match
     - match: nodegroup  # required for nodegroups
     - local.utils.etckeeper
