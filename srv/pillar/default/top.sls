@@ -1,4 +1,4 @@
-# pillar/top
+# pillar top
 
 base:
   '*':
