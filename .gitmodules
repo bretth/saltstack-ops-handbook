@@ -1,0 +1,15 @@
+[submodule "srv/formulas/locale"]
+	path = srv/formulas/locale
+	url = https://github.com/saltstack-formulas/locale-formula
+[submodule "srv/formulas/timezone"]
+	path = srv/formulas/timezone
+	url = https://github.com/saltstack-formulas/timezone-formula
+[submodule "srv/formulas/hostsfile"]
+	path = srv/formulas/hostsfile
+	url = https://github.com/saltstack-formulas/hostsfile-formula
+[submodule "srv/formulas/openssh"]
+	path = srv/formulas/openssh
+	url = https://github.com/saltstack-formulas/openssh-formula
+[submodule "srv/formulas/apt"]
+	path = srv/formulas/apt
+	url = https://github.com/saltstack-formulas/apt-formula
