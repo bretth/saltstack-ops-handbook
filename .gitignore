@@ -7,3 +7,6 @@ var/*
 
 # notion exports
 Export*.zip
+
+# local tmp
+tmp/*

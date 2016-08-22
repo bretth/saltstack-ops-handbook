@@ -1,4 +1,4 @@
-# salt/top
+# salt top
 # https://docs.saltstack.com/en/latest/ref/states/top.html
 
 base:  # environment
