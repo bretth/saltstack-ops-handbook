@@ -1,9 +1,8 @@
 # salt firewall
 
-# Jinja set variable using salt context and default similar to python dict get but for key trees
-{% set internal_interface = salt['pillar.get']('network:private_network_interface') %}
-{% set internal_network = salt ['pillar.get']('network:private_network', 'any') %}
-{% set public_interface = salt['pillar.get']('network:public_network_interface', 'any') %}
+{% set internal_interface = salt['pillar.get'] ('network:private_network_interface') %}  # default to None
+{% set internal_network = salt ['pillar.get']('network:private_network', 'any') %}  # default to 'any'
+{% set public_interface = salt['pillar.get']('network:public_network_interface', 'any') %} # default to 'any'
 
 {% set ssh_sources = salt['pillar.get']('firewall:ssh_sources', []) %}
 
