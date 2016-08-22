@@ -15,6 +15,11 @@ state_output: changes
 file_roots:
   base:  # Environment. base is the default. 
     - srv/salt  # path to a package distribution
+    - srv/formulas/locale
+    - srv/formulas/timezone
+    - srv/formulas/hostsfile
+    - srv/formulas/openssh
+    - srv/formulas/apt
 
 # Configuration of a file pillar, pillar_roots is the same as state file_roots.
 pillar_roots:
