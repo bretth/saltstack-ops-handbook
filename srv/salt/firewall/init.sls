@@ -1,5 +1,6 @@
 # salt firewall
 
+# pillar.get variable without error if it's missing
 {% set internal_interface = salt['pillar.get'] ('network:private_network_interface') %}  # default to None
 {% set internal_network = salt ['pillar.get']('network:private_network', 'any') %}  # default to 'any'
 {% set public_interface = salt['pillar.get']('network:public_network_interface', 'any') %} # default to 'any'
