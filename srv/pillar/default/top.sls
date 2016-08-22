@@ -1,5 +1,5 @@
 # pillar top
 
 base:
-  '*':
-    - locale
+  '*':  # available to all minions
+    - network
