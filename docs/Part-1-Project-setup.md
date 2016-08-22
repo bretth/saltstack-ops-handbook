@@ -8,13 +8,12 @@ At it's simplest, the _salt-ssh _ command is used to run raw commands on hosts o
 
 - [ ]  Initialise the project, install requirements, and set _env_ variables.
 
-		export domain=example.com # your naked/apex domain
-		pew mkproject salt.$domain # python 2.7 
+		pew mkproject [salt.example.com](http://salt.example.com) # python 2.7 
 
 	You should now be in the project directory so we can create the files we'll use to start and install salt.
 
 		git init .
-		echo 'salt==2016.3.1' >> requirements.txt
+		echo 'salt==2016.3.2' >> requirements.txt
 		brew install libgit2 # for pygit2
 		echo 'pygit2==0.24.1' >> requirements.txt
 		pip install -r requirements.txt
@@ -39,7 +38,7 @@ At it's simplest, the _salt-ssh _ command is used to run raw commands on hosts o
 
 			mkdir ssh
 			# -N passphrase recommended -C comment -f output file
-			ssh-keygen -N '' -C salt.$domain -f ssh/salt-ssh.rsa
+			ssh-keygen -N '' -C [salt.example.com](http://salt.example.com) -f ssh/salt-ssh.rsa
 
 	- [ ]  Create a project gpg2 key that will be used to encrypt secrets in the repository
 
@@ -53,6 +52,8 @@ At it's simplest, the _salt-ssh _ command is used to run raw commands on hosts o
 ## YAML files
 
 The YAML format is used heavily in SaltStack (as with Ansible). YAML is an alternative to json for configuration designed for readability by humans.
+
+YAML files as used by Salt are essentially just composed of dictionaries, lists, numbers and strings.
 
 Like python, space is significant in YAML to show hierarchy. You must configure your chosen editor to **always use spaces over tabs** (and 2 spaces per tab is the conventional style).
 
@@ -74,28 +75,37 @@ The critical things to know about YAML are `key: value` pairs translate to pytho
 		user: [[user]] # your current env $USER username 
 		pki_dir: .
 
-- [ ]  Create the salt1 master virtual machine on the provider preferrably with salt1.[[domain]] hostname and configured with internal network interface which we can use communication between minion and master. 
+- [ ]  Create the salt1 master virtual machine on the provider preferrably with [test-salt1.example.com](http://test-salt1.example.com) hostname and configured with internal network interface which we can use for communication later between minions and master. 
 
-	To simplify connecting attach your `ssh/salt-ssh.rsa.pub` identity file if the provider allows, and a bootstrap script that activates the firewall, updates the machine to the latest version, installs python, and reboots. The bootstrap script should do as little as possible. The rest will be done in salt. For example:
+	To simplify connecting attach your project `ssh/salt-ssh.rsa.pub` identity file if the provider allows, and a bootstrap script that activates the firewall, updates the machine to the latest version, installs python, and reboots. The bootstrap script should do as little as possible. The rest will be done in salt. For example:
 
 		#!/bin/sh
 		# Use [http://ipinfo.io](http://ipinfo.io) to get your actual public ip address
 		ufw allow proto tcp from [[your public ip address]] to any port 22
-		ufw --force enable
+		ufw —force enable
 		apt update —quiet -y
 		apt upgrade -qy
 		apt install -qy python
 		shutdown -r now
 
-	- [ ]  Edit `/etc/hosts` to add an entry for [salt1.example.com](http://salt1.example.com) 
+	- [ ]  Edit `/etc/hosts` to add an entry for [dev-salt1.example.com](http://dev-salt1.example.com) 
 
-			echo "[[vm ip address]] salt1.example.com" | sudo tee -a /etc/hosts
+			echo "[[vm ip address]] test-salt1.example.com" | sudo tee -a /etc/hosts
+
+	- [ ]  Append to `~/.ssh/config` a config for your new key
+
+			host dev.s1.ex
+			hostname [dev-salt1.example.com](http://dev-salt1.example.com) 
+			user root
+			identityfile ~/[[path]]/salt.example.com/ssh/salt-ssh.rsa
+
+		We'll now use _ssh test.s1.ex_ instead of _ssh -i ssh/salt-ssh.rsa root@salt1.example.com_ 
 
 - [ ]  Deploy your project ssh public identity file (if you haven't already) and test that you can login.
 
 		brew install ssh-copy-id # not installed by default on macOS
-		ssh-copy-id -i ssh/salt-ssh.rsa.pub root@salt1.example.com
-		ssh -i ssh/salt-ssh.rsa.pub root@salt1.example.com
+		ssh-copy-id test.s1.ex
+		ssh test.s1.ex
 
 	 _ssh-salt_ has an option for connecting with a password and deploying ssh keys but I found it not 100% reliable.
 
@@ -107,8 +117,10 @@ The roster file defines your minions for _salt-ssh._ Like the master file in Sal
 	[Salt Rosters](https://docs.saltstack.com/en/latest/topics/ssh/roster.html)
 
 		# [https://docs.saltstack.com/en/latest/topics/ssh/roster.html](https://docs.saltstack.com/en/latest/topics/ssh/roster.html) 
-		salt1.example.com: # the minion id 
-			host: salt1.example.com # the simplest host config
+		test-salt1.example.com: # the minion id 
+			host: test-salt1.example.com # the simplest host config
+
+	We could just us a short minion id, but a fqdn makes sense when we want to refer to that minion definitively. With salt-ssh we can target hosts using globs such as '*' for all or 'dev*' for minions starting with dev. We can also group them together with nodegroups so that minions can do more than one role which we will later on.
 
 ## Saltfiles & salt-ssh
 
@@ -124,17 +136,49 @@ The roster file defines your minions for _salt-ssh._ Like the master file in Sal
 - [ ]  Verify the _salt-ssh_ command can connect with a raw ssh command `—raw` `-r` targeting the all salt machines and just because we can, log _everything_ to console `—log-level={{all|debug ...}} -l` . We'll also use the `—ignore-host-keys -i` option on first run.
 
 		# since salt-ssh still requires python to be installed on the target machine we'll install it if it isn't already
-		salt-ssh 'salt*' -i -l all -r 'apt -qy install python' 
+		salt-ssh '*' -i -l all -r 'apt -qy install python' 
 
 	The first time the _salt-ssh_ command is run it will create a local ssh keypair if required which it isn't because we've already done that. There are additional [debugging options](https://docs.saltstack.com/en/latest/topics/ssh/index.html#debugging-salt-ssh) if you need them.
 
 	[Salt SSH](https://docs.saltstack.com/en/stage/topics/ssh/index.html)
 
-- [ ]  With python installed, verify the _salt-ssh_ command can connect with the host and run a _salt_ _execution_ _module_ (a job) on the target vm. In this instance we will target _all_ (of one) machines in the roster using a glob. 
+- [ ]  With python installed, verify the _salt-ssh_ command can connect with the minion and run a _salt_ _module (_ salt.modules) _._ In this instance we will target _all_ (of one) machines in the roster using a glob. 
+
+	We'll call it a minion because even though it doesn't have the minion agent installed, _salt-ssh, _ installs a standalone thin environment it can execute commands through.
+
+	Modules are the backbone of salt.
 
 		salt-ssh '*' test.ping
 
+	Familiarize yourself with the other modules you can control your minion with and read the source code.
+
 	[execution modules](https://docs.saltstack.com/en/latest/ref/modules/all/index.html)
+
+## Nodegroups (aka roles)
+
+[Node groups](https://docs.saltstack.com/en/latest/topics/targeting/nodegroups.html)
+
+- [ ]  Update `master` to configure nodegroups
+
+	Nodegroups [don't work](https://github.com/saltstack/salt/issues/16068) correctly in salt-ssh at the moment but roles are so useful I think it's worth the undocumented workaround and limitations.
+
+		# [https://docs.saltstack.com/en/develop/ref/configuration/master.html](https://docs.saltstack.com/en/develop/ref/configuration/master.html) 
+		
+		root_dir: . # store relative to the project folder
+		user: [[user]] # your current env $USER username 
+		pki_dir: .
+		
+		# the standard setting that works on the host with compound matching
+		nodegroups:
+		 test: test-salt1.example.com
+		
+		# the undocumented workaround that allows you to map a comma-separated list, or a YAML list to a group
+		ssh_list_nodegroups:
+		 test: test-salt1.example.com
+
+	- [ ]  Target your test nodegroup
+
+		salt-ssh -N test test.versions
 
 ## Summary
 
@@ -146,5 +190,6 @@ The _salt-ssh_ command is the method for managing minions without master or mini
 - Configure a _roster_ file
 - Execute raw commands with _salt-ssh _ on a rostered minion
 - Execute salt module jobs with _salt-ssh _ on a rostered minion
+- Use nodegroups
 
 You can do a lot with execution modules but really it's only one step more evolved than running shell commands directly. We can do better.

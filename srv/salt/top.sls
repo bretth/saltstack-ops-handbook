@@ -1,13 +1,14 @@
-# salt/top
+# salt top
 # https://docs.saltstack.com/en/latest/ref/states/top.html
 
 base:  # environment
-  '*':  # target all
-    - packaging # single sls state file
+  '*': # match all minions
+    - network
     - locale
     - timezone
-    - openssh.config
-    - network
     - apt.unattended
+    - openssh.config
     - firewall
-    - hostsfile.hostname 
+  test:  # group to match
+    - match: nodegroup  # required for nodegroups
+    - utils.etckeeper

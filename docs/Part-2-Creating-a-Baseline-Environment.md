@@ -2,41 +2,38 @@
 
 08/04/2016
 
-- [ ]  Create the directories we will require.
-
-		mkdir -p srv/salt srv/formulas srv/pillar srv/pillar-files/hosts/salt1.example.com/ssh-files
-
 ## State Files
 
-- [ ]   `touch srv/salt/packaging.sls` state file to install all the package management packages we might need in the order we want.
+A state (.sls) file executes functions from state modules (salt.states). State modules would usually call salt.modules to do the actual work. 
 
-	Salt state (.sls) files allow you to execute a series of python module functions from _salt.states_ and provide arguments to those functions but in YAML instead of python. In this simple example they will be executed in the order they are declared.
+[How Do I Use Salt States?](https://docs.saltstack.com/en/latest/topics/tutorials/starting_states.html)
 
-		# https://docs.saltstack.com/en/latest/ref/states/writing.html
-		
-		# the short form for calling a python module function
-		# Ubuntu 16.04 pip needs python-setuptools for some packages
-		python-setuptools: # globally unique id and name argument
-			pkg.installed # salt module.function
-		# equivalent of salt.states.pkg.installed('python-setuptools')
-		
-		# the preferred longer form 
-		enable_saltstack_to_install_python-pip_packages: # globally unique id
-			pkg.installed: # salt module.function
-		 	- name: python-pip # name argument
-		 
-		enable_saltstack_to_add_external_apt_packages: 
-			pkg.installed:
-		 	- name: python-apt
-		
+- [ ]  Optionally create a state file to install etckeeper in our test environment
 
-	The longer form is usually preferred because you can describe _why _ you are doing something without needing to comment.
+	We're going to use etckeeper to track changes to configuration files on the host in development which is a good excuse to demonstrate the most simple of state files.
 
-	Just like a public api, ids should not change unless they absolutely have to. 
+	- [ ]   `mkdir -p srv/salt/utils` 
 
-	[How Do I Use Salt States?](https://docs.saltstack.com/en/latest/topics/tutorials/starting_states.html)
+		Salt uses _/srv/salt_ as the default location for state files. 
 
-	The biggest issues with this state file is that it is Ubuntu specific and has a workaround for a specific version of Ubuntu. Later on we'll look at how you might improve that. 
+	- [ ]   `touch srv/salt/utils/init.sls` 
+
+		Just like python's __init__.py files the init.sls takes the namespace of it's parent directory, 'utils'. Namespaces in salt are pretty similar to python.
+
+	- [ ]   `touch srv/salt/utils/etckeeper.sls` 
+
+			# salt utils.etckeeper
+			
+			# track changes in /etc
+			# salt.states.pkg.installed(name='etckeeper')
+			etckeeper: # global id and name arg
+				pkg.installed # module.function
+
+		A move verbose way of defining this without comments to describe why we're installing it would be:
+
+			install etckeeper to track etc changes: # global id
+				pkg.installed: # module.function
+			 	- name: etckeeper # name argument in a list of keyword args
 
 ## File Serving
 
@@ -46,39 +43,78 @@
 
 		file_roots:
 			base: # Environment. base is the default. 
-		 	- srv/salt # path to salt state files
+		 	- srv/salt # path to a package
 
-	You can have multiple environments (dev, staging etc).
+	You can have multiple _file_roots_ environments and paths aside from the default _base_ environment _ _ (dev, staging etc).
 
-## Testing State Files
+	Salt will search in order of configuration, so it gives flexibility to override behaviour of existing installed packages or alter the namespace to avoid conflicts.
 
-- [ ]  Test the packaging state file.
+- [ ]   _Validate_ the etckeeper state file against the target hosts.
 
-	Some essential test commands from the _salt.modules.state_ module _ _ that test the states on the targeted hosts.
+		$ salt-ssh -N test state.show_sls utils.etckeeper
+		test-salt1.example.com:
+		 ----------
+		 install etckeeper to track etc changes:
+		 ----------
+		 __env__:
+		 base
+		 __sls__:
+		 utils.etckeeper
+		 pkg:
+		 |_
+		 ----------
+		 name:
+		 etckeeper
+		 - installed
+		 |_
+		 ----------
+		 order:
+		 10000 # the order of execution
 
-		salt-ssh '*' state.show_sls packaging # validate the sls
+- [ ]   _Test_ the etckeeper state file against a target.
+
+		$ salt-ssh -N test state.apply utils.etckeeper test=true
+		test-salt1.example.com:
+		----------
+		 ID: install etckeeper to track etc changes
+		 Function: pkg.installed
+		 Name: etckeeper
+		 Result: None
+		 Comment: The following packages would be installed/updated: etckeeper
+		 Started: 13:39:39.435264
+		 Duration: 27.425 ms
+		 Changes: 
 		
-		salt-ssh '*' state.apply test=True packaging # test apply packaging. 
-		# Can also add comma separated additional state files to apply
+		Summary for test-salt1.example.com
+		------------
+		Succeeded: 1 (unchanged=1)
+		Failed: 0
+		------------
+		Total states run: 1
 
-	Update master to set _failhard: True _ to stop execution at the first failed state, and _state_verbose: False _ to show only changed or failed states.
+	The verbosity of the output can be adjusted with the master settings _state_output (e.g. state_output: changes) _ and _state_verbose: false _ (to remove unchanged states from output). 
 
 ## Salt Top File
 
 - [ ]   `touch srv/salt/top.sls` file.
 
-	The top file is a special state file that maps states to minions so we don't need to apply everything manually.
+	We are able to apply state files to minions manually because _all state files are available to all minions_ , but the top file is a special state file that maps states to minions so we don't need to apply everything manually.
 
 		# salt/top
 		# [https://docs.saltstack.com/en/latest/ref/states/top.html](https://docs.saltstack.com/en/latest/ref/states/top.html) 
 		
 		base: # environment
-			'*': # target all
-		 	- packaging # single sls state file 
+			'*': # match all minions
+		 test: # group to match
+		 - match: nodegroup # required for nodegroups
+		 - utils.etckeeper
+		 
+
+	By using groups we can eaily add extra states that wouldn't be used in production or allow a host to have multiple roles.
 
 	[The Top File](https://docs.saltstack.com/en/latest/ref/states/top.html)
 
-	- [ ]  Apply the top file state to the host
+	- [ ]  Apply the top file state to any minion
 
 			salt-ssh '*' state.apply
 			
@@ -87,162 +123,195 @@
 			salt-ssh '*' state.show_lowstate # low level execution order view
 			salt-ssh '*' state.apply packaging # execute one or more comma separated state files
 
-## Formulae
+- [ ]  Create network state files to set a private network interface
 
-- [ ]  Add external formula for locale, timezone, hostname, and openssh.
+	Most providers have a private interface which will be useful for minions to communicate with each other securely within a location.
 
-	Salt _formula_ are simply pre-written salt states for re-use. In essense we should treat them as we would external python packages.
+	- [ ]  Determine which interface we can use
 
-	[Salt Formulas](https://docs.saltstack.com/en/latest/topics/development/conventions/formulas.html)
+			# run a raw call
+			salt-ssh '*' -r 'ifconfig -a'
 
-		git submodule add [https://github.com/saltstack-formulas/locale-formula](https://github.com/saltstack-formulas/locale-formula) srv/formulas/locale
-		git submodule add [https://github.com/saltstack-formulas/timezone-formula](https://github.com/saltstack-formulas/timezone-formula) srv/formulas/timezone
-		git submodule add [https://github.com/saltstack-formulas/hostsfile-formula](https://github.com/saltstack-formulas/hostsfile-formula) srv/formulas/hostsfile
-		git submodule add [https://github.com/saltstack-formulas/openssh-formula](https://github.com/saltstack-formulas/openssh-formula) srv/formulas/openssh
-		git submodule add [https://github.com/saltstack-formulas/apt-formula](https://github.com/saltstack-formulas/apt-formula) srv/formulas/apt
+		In my case _ens7 _ is available but not configured, and the provider pre-assigns an ip address to use.
 
-	When writing your own formula add a FORMULA file which the Salt Package Manager ( [SPM](https://docs.saltstack.com/en/latest/topics/spm/index.html) ) can leverage.
+	- [ ]  Update salt top to add a network sls for all minions
 
-	-  _So why not just use SPM or _ _[gitfs](https://docs.saltstack.com/en/latest/topics/tutorials/gitfs.html)_ _? Why submodules? _ 
+			# salt top
+			# [https://docs.saltstack.com/en/latest/ref/states/top.html](https://docs.saltstack.com/en/latest/ref/states/top.html) 
+			
+			base: # environment
+			 '*': # match all minions
+			 - network
+			 test: # group to match
+			 - match: nodegroup # required for nodegroups
+			 - utils.etckeeper
 
-		Repositories get deleted, package providers go down, and ideally you want to pin to a tagged release or revision in your requirements as per python pip. 
+	- [ ]   `mkdir srv/salt/network` 
+	- [ ]   `touch srv/salt/network/init.sls` 
 
-		We _could_ use gitfs but we'd want to fork repositories, and availability may be an issue. Gitfs backends make better sense in a scaled up environment with enterprise git availability; gitfs also has issues to workaround when used with salt-ssh.
+			# salt network
+			
+			ens7:
+			 network.managed:
+			 - enabled: true
+			 - type: eth
+			 - proto: static
+			 - ipaddr: 10.99.0.11 # your private ip
+			 - netmask: 255.255.0.0 # your netmask
+			 - mtu: 1450 # provider recommended mtu
+			
 
-		SPM is new so most formula isn't packaged for it and it needs lots of configuration settings when the salt configuraton is not in the default location. Unfortunately I couldn't get it to work at all for the timezone-formula so it was a non-starter.
+	- [ ]  Apply the network changes
 
-		Submodules on the other hand are mature, can be pinned to a revision easily and we can store locally (and remotely) and deploy them whole, filtering out the actual .git repository. 
+		We could dig around the 'network' module to see what network.managed does or we can just let etckeeper do the work.
 
-		The pragmatic approach then is to use submodules; create a FORMULA file to leverage spm when it matures, and skip gitfs altogether unless you know you need it.
+			salt-ssh -N test state.apply network
 
-	[FORMULA File](https://docs.saltstack.com/en/latest/topics/spm/spm_formula.html#spm-formula)
+		In this case it changes the /etc/network/interfaces file.
 
-	-  _Useful starter commands for working with submodules._ 
+		- [ ]  Revert the changes to /etc/network/interfaces in etckeeper 
+	- [ ]  Prepend _file.copy_ to `srv/salt/network/init.sls` to backup /etc/network/interfaces
 
-			git submodule status
-			git fetch --recurse-submodules
-			git pull --recurse-submodules 
-			git submodule update --recursive
+		Having a backup of the starting state is useful when we make multiple state changes over time without having an adequate migration strategy in place. 
 
-- [ ]  Update `master` to add the formulas to _file_roots_ 
+			# salt network
+			
+			# this will only copy the first time
+			/etc/network/interfaces.orig: # target
+			 file.copy:
+			 - source: /etc/network/interfaces
+			 - preserve: true # keep permissions
+			
+			ens7:
+			 network.managed:
+			 - enabled: true
+			 - type: eth
+			 - proto: static
+			 - ipaddr: 10.99.0.11 # your private ip
+			 - netmask: 255.255.0.0 # your netmask
+			 - mtu: 1450 # provider recommended mtu
 
-		file_roots:
-			base: # Environment. base is the default. 
-		 	- srv/salt # path to salt state files
-		 - srv/formulas/locale
-		 - srv/formulas/timezone
-		 - srv/formulas/hostsfile
-		 - srv/formulas/openssh
-		 - srv/formulas/apt
+	- [ ]  Add a check command to ens7.
+
+		It's easy to make state functions succeed, but sometimes it doesn't mean it actually worked as intended. A _check_cmd _ asserts the output of the command to be true or false to determine whether the function was actually successful.
+
+			ens7:
+			 network.managed:
+			 - enabled: true
+			 - type: eth
+			 - proto: static
+			 - ipaddr: 10.99.0.11 # your private ip
+			 - netmask: 255.255.0.0 # your netmask
+			 - mtu: 1450 # provider recommended mtu
+			 - check_cmd:
+			 - "ifconfig ens7 | grep 'inet addr:10.99.0.11'"
+
+	- [ ]   `touch srv/salt/network/test.sls` 
+
+		We're now going to apply some basic test driven development to saltstack _. _ 
+
+		-  _Why test salt state files?_ 
+
+			Well actually, salt state files are the tests. Salt state functions either succeed or fail when run which gives them the essential characteristics of a test. The check_cmd even allows us to do an additional assert. 
+
+			Applying a salt file or applying 'top.sls' also produces a summary of successes and failures which makes salt a test runner What is missing to complete the picture are setup and teardown. 
+
+			Setup will help identify dependencies that either need to be documented as requirements, or dealt with as part of the state file or package. Teardown will ensure that there is clean separation between this package and the setup of the next.
+
+			Since salt provides most of the tools we need to do all these things in the state files themselves there seems no reason not to.
+
+			# salt/network/test
+			
+			include: # import and execute the following state files 
+				- local.network
+			 - local.network.teardown
+
+		The 'include' function imports and runs state files recursively in the order they are imported. Unlike python you can't do a relative include in a salt state file.
+
+		As discussed the state file under test really _is_ the test and even includes a setup to backup the main config file, so we really don't need to much other than add a teardown file.
+
+		[Include and Exclude](https://docs.saltstack.com/en/latest/ref/states/include.html)
+
+	- [ ]   `touch srv/salt/network/teardown.sls` 
+
+			# salt network.teardown
+			
+			# teardown
+			/etc/network/interfaces:
+			 file.copy:
+			 - source: /tmp/etc~network~interfaces
+			 - preserve: true
+			 - force: true
+			 
+			ip addr flush ens7:
+			 cmd.run
+
+	- [ ]   `salt-ssh -N test state.apply network.test` 
+
+		Run the test!
+
+	We have a problem with our state files though. The runtime configuration is wired into the state files which doesn't make it very portable and breaks our 12factor contract. The answer to this are pillars.
 
 ## Pillars
 
 - [ ]  Append `master` to configure a flat file based pillar.
 
-	Here we introduce another key concept, _pillars_ . Unlike state files which may be blasted out to all minions, pillars are key value stores that hold secrets and other data which may be intended only for specific minion. Where state files are programs, pillars are the settings we want to use to configure those programs.
+	Here we introduce another key concept, _pillars_ . Pillars are key value stores to any depth that hold secrets and other data which may be intended only for specific minions. 
 
 		# Configuration of a file pillar, pillar_roots is the same as state file_roots.
 		pillar_roots:
 			base:
-		 	- srv/pillar
+		 	- srv/pillar/default
 
 	[Pillar Walkthrough](https://docs.saltstack.com/en/latest/topics/tutorials/pillar.html)
 
 	Pillars are pluggable so other services could also provide the key, value pairs, such as [vault](https://www.vaultproject.io) .
 
-- [ ]   `touch srv/pillar/top.sls` 
+- [ ]   `touch srv/pillar/default/network.sls` to add some configuration settings for network.
 
-	Just like salt tops, pillar has a top as well that determines what pillar files are merged to a single key value store. 
+		# pillar network
+		
+		network:
+		 private_network_interface: ens7
+		 type: eth
+		 proto: static
+		 netmask: 255.255.0.0
 
-		# pillar/top
+- [ ]   `touch srv/pillar/default/top.sls` 
+
+	Just like salt tops, pillar has a top as well that determines what pillar files are merged to a single key value store. Unlike the salt top we need to actually map the pillar state file to a target to use it since _pillars are only sent to their targets._ 
+
+		# pillar top
 		
 		base:
-		 '*':
-		 - locale
+		 '*': # available to all minions
+		 - network
 
-- [ ]   `touch srv/pillar/locale.sls` to configure the locale formula state.
+- [ ]  View the key value items to ensure you they are configured as expected
 
-	By convention the formula's pillar.example file should give a full example configuration. The locale.sls file will be merged with all the other pillar files so the name of the file doesn't really matter expect for consistency and clarity*. 
+		salt-ssh -N test pillar.items
+		# ensure a specific value exists for the target
+		salt-ssh -N test pillar.get network:private_network_interface
 
-		locale: 
-		 present:
-		 - "en_US.UTF-8 UTF-8"
-		 - "en_AU.UTF-8 UTF-8" # replace with your own
-		 default: 
-		 name: 'en_AU.UTF-8' # Note: On debian systems don't write the 
-		 # second 'UTF-8' here or you will experience 
-		 # salt problems like:
-		 # LookupError: unknown encoding: utf_8_utf_8
-		 # Restart the minion after you corrected this!
-		 requires: 'en_AU.UTF-8 UTF-8' # replace with your own
-
-	- [ ]  View the key value items to ensure you they are configured as expected
-
-			salt-ssh '*' pillar.items
-			# ensure a specific value exists for the target
-			salt-ssh '*' pillar.get locale:default:name
-
-	*Note: Beware of name clashes with existing formula that you aren't specifically intending to overwrite.
-
-- [ ]  Append `- locale` to '*' in `srv/salt/top.sls` to use the locale state.
-
-		# salt/top
-		# [https://docs.saltstack.com/en/latest/ref/states/top.html](https://docs.saltstack.com/en/latest/ref/states/top.html) 
-		
-		base: # environment
-		 '*': # target all
-		 - packaging # single sls state file
-		 - locale
-
-- [ ]  Configure timezone state
-	- [ ]  Append `- timezone` to '*' in `srv/pillar/top.sls` 
-	- [ ]   `touch srv/pillar/timezone.sls` 
-
-			timezone:
-			 name: 'Australia/Sydney'
-			 utc: True
-
-	- [ ]  Append `- timezone` to '*' in `srv/salt/top.sls` . 
-
-			base: # environment
-				'*': # target all
-			 	- packaging # single sls state file
-			 - locale
-			 - timezone
-
-- [ ]  Configure openssh.config formula state 
-	- [ ]   `touch srv/pillar/openssh.sls` 
-
-			# View the formula pillar.example for more examples
-			sshd_config:
-				PermitRootLogin: 'yes'
-			 PasswordAuthentication: 'no'
-			 X11Forwarding: 'no'
-
-	- [ ]  Append `- openssh` to '*' in `srv/pillar/top.sls` 
-	- [ ]  Append `- openssh.config` to '*' in `srv/salt/top.sls` .
-- [ ]  Workaround a salt-ssh [issue](https://github.com/saltstack/salt/issues/26585) finding formula jinja templates
-
-	This fixes TemplateNotFound errors when applying any state.
-
-		salt-ssh: 
-			config_dir: . 
-		 extra_filerefs:
-		 	- salt://openssh/map.jinja
-		 - salt://openssh/defaults.yaml
+	Now we need to use those pillar items in our state file.
 
 ## Jinja Templates
 
-- [ ]  Append `- network` to '*' in `srv/salt/top.sls` .
-- [ ]   `touch srv/salt/network.sls` 
+- [ ]  Update `srv/network/init.sls` 
 
-	By default state files are compiled [jinja](http://jinja.pocoo.org/docs/dev/templates/) templates with some jinja context variables thrown in, the first of which we'll use is the _pillar_ context variable.
+	By default state files are compiled [jinja](http://jinja.pocoo.org/docs/dev/templates/) templates with some context variables thrown in. The first context variable we'll use is the _pillar_ context variable.
 
 	We're going to configure the internal private network interface that the provider offers.
 
 	[Understanding Jinja](https://docs.saltstack.com/en/latest/topics/jinja/index.html)
 
-		# salt/network
+		# salt network
+		
+		# setup
+		/etc/network/interfaces.orig:
+		 file.copy:
+		 - source: /etc/network/interfaces
+		 - preserve: true
 		
 		{% set network=pillar['network'] %}
 		
@@ -256,172 +325,228 @@
 
 	Using _pillar['network'] _ has a weakness; if the key doesn't exist the state file fails when we apply it. There's a way around that we'll use soon, but it's fine for this mandatory setting.
 
-- [ ]  Append `- network` to '*' in `srv/pillar/top.sls` 
-- [ ]   `touch srv/pillar/network.sls` to add the configuration settings
-
-		# pillar/network
-		
-		network:
-		 private_network_interface: ens7
-		 type: eth
-		 proto: static
-		 netmask: 255.255.0.0
-
-	You'll notice I'm missing one; _internal_ipaddr_ . That's because it's a per minion setting. Since pillars get served to all minions, but applied only to the target ones, in cases with sensitive data - it's better to serve data only to the targetted minion. 
-
-- [ ]  Append `- apt.unattended` to '*' in `srv/salt/top.sls` 
-- [ ]  Append `- apt` to '*' in `srv/pillar/top.sls` 
-- [ ]   `touch srv/pillar/apt.sls` 
-
-	Previously we've used the _pillar _ context variable now we'll use the _salt _ context to execute a module function from _salt.modules.mod_random._ 
-
-		# pillar/apt
-		
-		{% set random_time_per_minion=salt['random.seed'](59) %}
-		apt:
-		 unattended:
-		 automatic_reboot: true
-		 automatic_reboot_time: '02:{{ '%02d'| format(random_time_per_minion) }}'
-
-	The default for Ubuntu unattended updates runs only security updates daily. Mostly Ubuntu can apply updates without rebooting but in the event of a kernel patch that needs a reboot we're erring on the side of security by letting it reboot unattended, but putting in a semi-random time so that if there are multiple hosts they don't all reboot at once.
-
-	We might revisit this later for a more pro-active approach.
+	There's also another issue; we haven't set a network:internal_ipaddr. That's because we don't want the same ip address for every minion.
 
 ## External Pillars (file_tree)
 
+A file_tree pillar is a pattern for applying a per-minion or per-group pillar from a file. Sadly file_tree nodegroups don't work with salt-ssh yet so you'll need to workaround that by embedding files in a standard pillar targetted at a group if you need it.
+
+- [ ]   `mkdir srv/pillar/minion` 
 - [ ]  Append to `master` the _ext_pillar_ config for _file_tree._ 
 
 		ext_pillar:
 		 - file_tree:
 		 		# remember the YAML double indent rule of dicts under lists!
-		 	root_dir: srv/pillar-minion
+		 	root_dir: srv/pillar/minion
 
 	The file_tree pillar module serves directories and their children as key values pairs terminating in a file key with file contents as it's value. It can target hosts or nodegroups and gets merged with other pillars. We could use this pattern to store secrets for individual or groups of hosts, but in this case we'll use it as an overkill method for storing the private ipaddr of the host.
 
-	Note **there is a bug** with hidden binary files like *.DS_Store breaking the file_tree pillar. Purge them.
+	Note **there is a ** **[bug](https://github.com/saltstack/salt/issues/33069)** with hidden binary files like *.DS_Store breaking the file_tree pillar. Purge them.
 
-- [ ]  Save the internal vm network address from the hosting provider to a file
+- [ ]   `mkdir -p srv/pillar/minion/hosts/test-salt1.example.com/network` 
+- [ ]   `touch srv/pillar/minion/hosts/test-salt1.example.com/network/internal_ipaddr` 
 
-		echo '[[vm_internal_ip_address]]' > srv/pillar-minion/hosts/salt1.example.com/network/internal_ipaddr
-		# pillar['network']['internal_ipaddr'] = 'file content' 
+	Put your internal ip address in the file
 
-	You can now _state.apply_ if you like.
+	- [ ]  Test the address is available `salt-ssh -N test pillar.get network:internal_ipaddr` 
 
 [pillar modules](https://docs.saltstack.com/en/latest/ref/pillar/all/index.html)
 
-## Requisites
+## Formulae
 
-Up to now state files have just been written in the order they execute. Very simple, but salt also has a method to create dependencies between states called requisites. In the simple case we will use here, the _onlyif _ requisite will execute another command first to determine whether the it should execute the state function.
+- [ ]   `mkdir srv/formulas` 
+- [ ]  Add external formula for locale, timezone, hostname, openssh, and apt.
 
-- [ ]  Append `- firewall` to '*' in `srv/salt/top.sls` .
-- [ ]   `touch srv/salt/firewall.sls` 
+	Salt _formula_ are simply pre-written salt states for re-use. In essense we should treat them as we would external python _distribution packages_ .
 
-	If you'd looked at some of the formula we've used, state files and other configuration files can be templates that are compiled before evaluation. Here we will use a template to configure a simple firewall. 
+	[Salt Formulas](https://docs.saltstack.com/en/latest/topics/development/conventions/formulas.html)
 
-		# salt/firewall.sls
-		
-		# Firewalld rules are applied in the following layered order:
-		
-		# 1. Direct rules (Not implemented)
-		# 2. Source address based zone
-		# 3. Interface based zone
-		# 4. Default zone
-		
-		# For each of the iptables chains allow/deny/log the priority is:
-		# - Rich rule (Not implemented)
-		# - Port definition
-		# - Service definition
-		
-		# Jinja set variable using salt context and default similar to python dict get but for key trees
-		{% set internal_interface = salt['pillar.get']('network:private_network_interface') %}
-		{% set ssh_sources = salt['pillar.get']('firewall:ssh', []) %}
-		# Note the Jinja comment syntax. This code would produce an error with any missing pillar keys as with missing keys python dicts.
-		{# {% set ssh_sources = pillar['firewall']['ssh'] %} #}
-		
-		remove_all_ufw_iptable_rules_and_disable: 
-		 cmd.run: 
-		 - name: 'ufw --force reset'
-		 - onlyif: # dynamically altering state with requisite functions
-		 - ufw status # Error or false means ufw —force reset doesn't run 
-		
-		remove_ufw:
-		 pkg.removed:
-		 - name: ufw
-		
-		install_firewalld:
-		 pkg.installed:
-		 - name: firewalld
-		
-		start_firewalld:
-		 service.running:
-		 - name: firewalld
-		 - enable: true
-		
-		# an interface can be bound to a single zone
-		trust_internal_interfaces:
-		 firewalld.bind:
-		 - name: trusted
-		 - interfaces:
-		 - lo
-		{% if internal_interface %}
-		 - {{ internal_interface }}
-		{% endif %}
-		# Jinja set variable using salt context and default [] if the pillar keys don't exist. 
-		{% set ssh_sources = salt['pillar.get']('firewall:ssh', []) %}
-		# Note the Jinja comment syntax. This code would produce an error with missing pillar keys.
-		{# {% set ssh_sources = pillar['firewall']['ssh'] %} #}
-		
-		# one or more sources can be bound to a single firewalld zone 
-		{% if ssh_sources %}
-		bind_sources_to_ssh_zone:
-		 firewalld.bind:
-		 - name: ssh
-		 - sources:
-		 {% for source in ssh_sources %}
-		 - {{ source }}
-		 {% endfor %}
-		allow_ssh_in_ssh_zone:
-		 firewalld.present:
-		 - name: ssh
-		 - services: 
-		 - ssh
-		{% endif %}
-		
-		set_default_zone:
-		 firewalld.present:
-		 - name: public # zone
-		 - block_icmp:
-		 - echo-reply
-		 - echo-request
-		 - default: true # —set-default-zone
-		{% if not ssh_sources %}
-		 - services:
-		 - ssh
-		{% endif %}
+		git submodule add [https://github.com/saltstack-formulas/locale-formula](https://github.com/saltstack-formulas/locale-formula) srv/formulas/locale
+		git submodule add [https://github.com/saltstack-formulas/timezone-formula](https://github.com/saltstack-formulas/timezone-formula) srv/formulas/timezone
+		git submodule add [https://github.com/saltstack-formulas/hostsfile-formula](https://github.com/saltstack-formulas/hostsfile-formula) srv/formulas/hostsfile
+		git submodule add [https://github.com/saltstack-formulas/openssh-formula](https://github.com/saltstack-formulas/openssh-formula) srv/formulas/openssh
+		git submodule add [https://github.com/saltstack-formulas/apt-formula](https://github.com/saltstack-formulas/apt-formula) srv/formulas/apt
 
-	Note the _pillar.get _ which operates as you'd expect from python and allows us to set a default if we prefer.
+	When writing your own formula add a FORMULA file which the Salt Package Manager ( [SPM](https://docs.saltstack.com/en/latest/topics/spm/index.html) ) can leverage.
 
-	[Requisites and Other Global State Arguments](https://docs.saltstack.com/en/latest/ref/states/requisites.html)
+	[FORMULA File](https://docs.saltstack.com/en/latest/topics/spm/spm_formula.html#spm-formula)
+
+	-  _Useful starter commands for working with submodules._ 
+
+			git submodule status
+			git fetch --recurse-submodules
+			git pull --recurse-submodules 
+			git submodule update --recursive
+
+- [ ]  Update `master` to append the formulas to _file_roots_ 
+
+		file_roots:
+			base: # Environment. base is the default. 
+		 	- srv/salt # path to salt state files
+		 - srv/formulas/locale
+		 - srv/formulas/timezone
+		 - srv/formulas/hostsfile
+		 - srv/formulas/openssh
+		 - srv/formulas/apt
+
+- [ ]  Configure locale formula
+	- [ ]  Append `- locale` to `base:'*'` in `srv/salt/top.sls` 
+
+			# salt top
+			# [https://docs.saltstack.com/en/latest/ref/states/top.html](https://docs.saltstack.com/en/latest/ref/states/top.html) 
+			
+			base: # environment
+			 '*': # match all minions
+			 - network
+			 - locale
+			 test: # group to match
+			 - match: nodegroup # required for nodegroups
+			 - utils.etckeeper
+
+	- [ ]  Append `- locale` to `base:'*'` in `srv/pillar/default/top.sls` 
+
+			# pillar top
+			
+			base:
+			 '*': # available to all minions
+			 - network
+			 - locale
+
+	- [ ]   `touch srv/pillar/default/locale.sls` to configure the locale formula state.
+
+		By convention the formula's 'pillar.example' file documents a full example configuration. The locale.sls file will be merged with all the other pillar files so the name of the file doesn't really matter expect for consistency and clarity*. 
+
+			# pillar locale
+			
+			locale: 
+			 present:
+			 - "en_US.UTF-8 UTF-8"
+			 - "en_AU.UTF-8 UTF-8" # replace with your own
+			 default: 
+			 name: 'en_AU.UTF-8' # Note: On debian systems don't write the 
+			 # second 'UTF-8' here or you will experience 
+			 # salt problems like:
+			 # LookupError: unknown encoding: utf_8_utf_8
+			 # Restart the minion after you corrected this!
+			 requires: 'en_AU.UTF-8 UTF-8' # replace with your own
+
+- [ ]  Configure timezone state
+	- [ ]  Append `- timezone` to `base:'*'` in `srv/pillar/default/top.sls` 
+	- [ ]   `touch srv/pillar/default/timezone.sls` 
+
+			timezone:
+			 name: 'Australia/Sydney'
+			 utc: True
+
+	- [ ]  Append `- timezone` to `base:'*'` in `srv/salt/top.sls` . 
+- [ ]  Configure apt.unattended updates
+	- [ ]  Append `- apt.unattended` to `base:'*'` in `srv/salt/top.sls` 
+	- [ ]  Append `- apt` to `base:'*'` in `srv/pillar/default/top.sls` 
+	- [ ]   `touch srv/pillar/default/apt.sls` 
+
+		Previously we've used the _pillar _ context variable now we'll use the _salt _ context to execute a module function from _salt.modules.mod_random._ 
+
+			# pillar apt
+			
+			{% set random_time_per_minion=salt['random.seed'](59) %}
+			apt:
+			 unattended:
+			 automatic_reboot: true
+			 automatic_reboot_time: '02:{{ '%02d'| format(random_time_per_minion) }}'
+
+		The default for Ubuntu unattended updates runs only security updates daily. Mostly Ubuntu can apply updates without rebooting but in the event of a kernel patch that needs a reboot we're erring on the side of security by letting it reboot unattended, but putting in a semi-random time so that if there are multiple hosts they don't all reboot at once.
+
+		We might revisit this later for a more pro-active approach that allows us to intervene.
+
+- [ ]  Configure openssh.config formula state 
+	- [ ]  Append `- openssh` to `base:'*'` in `srv/pillar/default/top.sls` 
+	- [ ]  Append `- openssh.config` to `base:'*'` in `srv/salt/top.sls` .
+	- [ ]   `touch srv/pillar/default/openssh.sls` 
+
+			# pillar openssh
+			
+			sshd_config:
+				PermitRootLogin: 'yes'
+			 PasswordAuthentication: 'no'
+			 X11Forwarding: 'no'
+
+	- [ ]  Workaround a salt-ssh [issue](https://github.com/saltstack/salt/issues/26585) finding formula jinja templates
+
+		This fixes TemplateNotFound errors when applying any state.
+
+			salt-ssh: 
+				config_dir: . 
+			 extra_filerefs:
+			 	- salt://openssh/map.jinja
+			 - salt://openssh/defaults.yaml
+
+## Jinja template logic
+
+There is a firewall module in salt which wraps firewalld. Although firewalld is available for Ubuntu, we're going to configure a simple ufw firewall using some simple jinja template logic because it's simpler to reason about and ufw is installed by default.
+
+- [ ]  Configure a firewall
+	- [ ]  Append `- firewall` to `base:'*'` in `srv/salt/top.sls` .
+	- [ ]  Append `- firewall` to `base:'*'` in `srv/pillar/default/top.sls` 
+	- [ ]   `mkdir srv/salt/firewall` 
+	- [ ]   `touch srv/salt/firewall/test.sls srv/salt/firewall/teardown.sls srv/salt/firewall/init.sls` 
+	- [ ]  Update `srv/salt/firewall/init.sls` to configure a base unconfigured firewall
+
+			# salt firewall
+			
+			# pillar.get variable without error if it's missing
+			{% set internal_interface = salt['pillar.get'] ('network:private_network_interface') %} # default to None
+			{% set internal_network = salt ['pillar.get']('network:private_network', 'any') %} # default to 'any'
+			{% set public_interface = salt['pillar.get']('network:public_network_interface', 'any') %} # default to 'any'
+			
+			{% set ssh_sources = salt['pillar.get']('firewall:ssh_sources', []) %}
+			
+			{% if internal_interface %}
+			ufw allow in on ens7 from {{ internal_network }} to any app openssh:
+			 cmd.run
+			{% endif %}
+			
+			{% if ssh_sources %}
+			{% for source in ssh_sources %}
+			ufw allow in on {{ public_interface }} from {{ source }} to any app openssh:
+			 cmd.run
+			{% endfor %}
+			{% else %}
+			# default to limit openssh
+			ufw allow openssh:
+			 cmd.run
+			{% endif %}
+			
+			ufw --force enable:
+			 cmd.run
+			
 
 ## Minion ids
 
 - [ ]  Optionally add _hostsfile.hostname_ state to `srv/salt/top.sls` 
-	-  _Setting a hostname isn't strictly necessary._ 
-
-			base: # environment
-			 '*': # target all
-			 - packaging # single sls state file
-			 - locale
-			 - timezone
-			 - hostsfile.hostname
 
 	By default the minion id is derived from the fully qualified domain name (fqdn) of the host. It's better practice however to set the minion id manually. In _salt-ssh_ the roster file determines the minion id and this state just sets the hostname to match it.
+
+		# salt top
+		# [https://docs.saltstack.com/en/latest/ref/states/top.html](https://docs.saltstack.com/en/latest/ref/states/top.html) 
+		
+		base: # environment
+		 '*': # match all minions
+		 - network
+		 - locale
+		 - timezone
+		 - apt.unattended
+		 - openssh.config
+		 - firewall
+		 - hostsfile.hostname
+		 test: # group to match
+		 - match: nodegroup # required for nodegroups
+		 - utils.etckeeper
 
 - [ ]  Test the combined state.
 
 		salt-ssh '*' state.apply test=true
 
-- [ ]  Apply the new state.
+- [ ]  Apply the new high state.
 
 		salt-ssh '*' state.apply
 
@@ -430,14 +555,13 @@ Up to now state files have just been written in the order they execute. Very sim
 At this point we have created a project that can bootstrap a baseline host that could be applied to any project with everything under version control. The salt concepts you should now have a basic understanding of are:
 
 - writing and testing salt _ state files_ 
-- serving state files to hosts
-- using _salt states modules _ in state files
+- serving state files to minions
+- using _salt state modules _ in state files
 - salt _top_ files
-- formula state files
+- formulas
 - using and testing _pillars_ 
 - external pillars 
 - using basic Jinja templating in state files
-- the salt _ requisite _ system
 - how minion ids are set
 
 At this point you should be able to use your repository as the basis for your own _ salt-ssh_ project.
