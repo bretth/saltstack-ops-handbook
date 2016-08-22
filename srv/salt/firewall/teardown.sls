@@ -19,7 +19,7 @@ ufw delete allow in on ens7 from {{ internal_network }} to any app openssh:
 
 {% if ssh_sources %}
 {% for source in ssh_sources %}
-ufw delete allow in on {{ public_interface }} from {{ source }} to any app openssh
+ufw delete allow in on {{ public_interface }} from {{ source }} to any app openssh:
   cmd.run
 {% endfor %}
 {% endif %}
