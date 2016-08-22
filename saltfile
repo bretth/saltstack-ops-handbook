@@ -1,5 +1,7 @@
 # https://docs.saltstack.com/en/latest/topics/ssh/#define-cli-options-with-saltfile
 
-salt-ssh:
-    config_dir: .
-
+salt-ssh:  
+  config_dir: . 
+  extra_filerefs:
+    - salt://openssh/map.jinja
+    - salt://openssh/defaults.yaml
