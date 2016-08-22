@@ -11,4 +11,4 @@ base:  # environment
     - firewall
   test:  # group to match
     - match: nodegroup  # required for nodegroups
-    - local.utils.etckeeper
+    - utils.etckeeper
