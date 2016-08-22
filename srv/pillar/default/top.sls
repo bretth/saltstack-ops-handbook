@@ -7,3 +7,4 @@ base:
     - timezone
     - apt
     - openssh
+    - firewall
