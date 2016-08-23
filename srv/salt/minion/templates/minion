@@ -1,4 +1,0 @@
-# minion configuration
-
-file_client: local  # local=masterless default 'remote'
-id: {{ grains['id'] }} # defining it in config is more reliable than relying on the default fqdn which 'could' change.
