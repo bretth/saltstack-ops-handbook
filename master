@@ -4,12 +4,6 @@ root_dir: .  # store relative to the project folder
 user: [[user]] # your current env $USER username 
 pki_dir: .
 
-ssh_list_nodegroups:
-  test: test-salt1.example.com
-
-nodegroups:
-  test: test-salt1.example.com
-
 state_output: changes
 
 file_roots:

@@ -9,6 +9,3 @@ base:  # environment
     - apt.unattended
     - openssh.config
     - firewall
-  test:  # group to match
-    - match: nodegroup  # required for nodegroups
-    - utils.etckeeper
