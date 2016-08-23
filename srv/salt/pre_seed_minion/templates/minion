@@ -1,0 +1,7 @@
+# minion configuration
+
+{% if pillar['masterless'] %}
+file_client: local  # default 'remote'
+{% endif %}
+
+id: {{ grains['id'] }} # defining it in config is more reliable than relying on the default fqdn which 'could' change.
