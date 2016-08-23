@@ -13,3 +13,6 @@
 [submodule "srv/formulas/apt"]
 	path = srv/formulas/apt
 	url = https://github.com/saltstack-formulas/apt-formula
+[submodule "srv/formulas/salt"]
+	path = srv/formulas/salt
+	url = https://github.com/saltstack-formulas/salt-formula
