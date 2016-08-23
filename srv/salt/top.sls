@@ -9,3 +9,9 @@ base:  # environment
     - apt.unattended
     - openssh.config
     - firewall
+  
+  '*-salt*':  # $masterless
+     - pre_seed_minion
+  
+  'test*':  # group to match
+    - utils.etckeeper
