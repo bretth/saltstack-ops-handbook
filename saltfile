@@ -5,3 +5,7 @@ salt-ssh:
   extra_filerefs:
     - salt://openssh/map.jinja
     - salt://openssh/defaults.yaml
+
+salt-key:
+    config_dir: .
+    gen_keys_dir: srv/pillar/files/hosts/test-salt1.example.com/files/ssh
