@@ -12,6 +12,7 @@ base:  # environment
   
   '*-salt*':  # $masterless
      - pre_seed_minion
+     - local_salt_minion
   
   'test*':  # group to match
     - utils.etckeeper
