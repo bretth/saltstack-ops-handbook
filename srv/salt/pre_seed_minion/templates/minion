@@ -1,6 +1,6 @@
 # minion configuration
 
-{% if pillar['masterless'] %}
+{% if salt['pillar.get']('masterless', True) %}
 file_client: local  # default 'remote'
 {% endif %}
 
