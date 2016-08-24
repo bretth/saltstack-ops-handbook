@@ -14,6 +14,7 @@ file_roots:
     - srv/formulas/hostsfile
     - srv/formulas/openssh
     - srv/formulas/apt
+    - srv/formulas/salt
 
 # Configuration of a file pillar, pillar_roots is the same as state file_roots.
 pillar_roots:
