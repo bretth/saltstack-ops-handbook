@@ -23,4 +23,4 @@ pillar_roots:
 ext_pillar:
   - file_tree:
         # remember the YAML double indent rule of dicts under lists!
-        root_dir: srv/pillar/minion
+        root_dir: srv/pillar/files
