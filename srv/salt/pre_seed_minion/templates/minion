@@ -1,7 +1,33 @@
 # minion configuration
 
+id: {{ grains['id'] }} # defining it in config is more reliable than relying on the default fqdn which 'could' change.
+
+{% set srv = ['/srv/releases/', pillar['project']['name'], '/srv']|join %} 
+
+
 {% if salt['pillar.get']('masterless', True) %}
 file_client: local  # default 'remote'
-{% endif %}
 
-id: {{ grains['id'] }} # defining it in config is more reliable than relying on the default fqdn which 'could' change.
+
+file_roots:
+  base:  # Environment. base is the default. 
+    - {{srv}}/salt  # path to a package distribution
+    - {{srv}}/formulas/locale
+    - {{srv}}/formulas/timezone
+    - {{srv}}/formulas/hostsfile
+    - {{srv}}/formulas/openssh
+    - {{srv}}/formulas/apt
+    - {{srv}}/formulas/salt
+
+pillar_roots:
+    base:
+    - {{srv}}/pillar/default
+
+ext_pillar:
+  - file_tree:
+      # remember the YAML double indent rule of dicts under lists!
+      root_dir: {{srv}}/pillar/files
+      keep_newline:
+        - files/*
+
+{% endif %}
