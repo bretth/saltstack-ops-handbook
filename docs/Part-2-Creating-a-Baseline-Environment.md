@@ -51,7 +51,7 @@ A state (.sls) file executes functions from state modules (salt.states). State m
 
 - [ ]   _Validate_ the etckeeper state file against the target hosts.
 
-		$ salt-ssh -N test state.show_sls utils.etckeeper
+		$ salt-ssh 'test*' state.show_sls utils.etckeeper
 		test-salt1.example.com:
 		 ----------
 		 install etckeeper to track etc changes:
@@ -73,7 +73,7 @@ A state (.sls) file executes functions from state modules (salt.states). State m
 
 - [ ]   _Test_ the etckeeper state file against a target.
 
-		$ salt-ssh -N test state.apply utils.etckeeper test=true
+		$ salt-ssh 'test*' state.apply utils.etckeeper test=true
 		test-salt1.example.com:
 		----------
 		 ID: install etckeeper to track etc changes
@@ -92,7 +92,34 @@ A state (.sls) file executes functions from state modules (salt.states). State m
 		------------
 		Total states run: 1
 
+		# show the or
+
 	The verbosity of the output can be adjusted with the master settings _state_output (e.g. state_output: changes) _ and _state_verbose: false _ (to remove unchanged states from output). 
+
+## The Low State
+
+The low state is the state files compiled down to an order of execution. Not very interesting for one function, but when we get to out-of-declaration-order execution this is an extremely handy command.
+
+- [ ]  Display the low state for an individual state file with _show_low_sls_ 
+
+		salt-ssh 'test*' state.show_low_sls utils.etckeeper
+		test-salt1.example.com:
+		 |_
+		 ----------
+		 __env__:
+		 base
+		 __id__:
+		 install etckeeper to track /etc changes
+		 __sls__:
+		 utils.etckeeper
+		 fun:
+		 installed
+		 name:
+		 etckeeper
+		 order:
+		 10000
+		 state:
+		 pkg
 
 ## Salt Top File
 
@@ -105,8 +132,7 @@ A state (.sls) file executes functions from state modules (salt.states). State m
 		
 		base: # environment
 			'*': # match all minions
-		 test: # group to match
-		 - match: nodegroup # required for nodegroups
+		 'test*': # group to match
 		 - utils.etckeeper
 		 
 
@@ -120,7 +146,6 @@ A state (.sls) file executes functions from state modules (salt.states). State m
 			
 			# other useful commands
 			salt-ssh '*' state.show_highstate # high level alphabetical overview of what will be executed
-			salt-ssh '*' state.show_lowstate # low level execution order view
 			salt-ssh '*' state.apply packaging # execute one or more comma separated state files
 
 - [ ]  Create network state files to set a private network interface
@@ -133,18 +158,6 @@ A state (.sls) file executes functions from state modules (salt.states). State m
 			salt-ssh '*' -r 'ifconfig -a'
 
 		In my case _ens7 _ is available but not configured, and the provider pre-assigns an ip address to use.
-
-	- [ ]  Update salt top to add a network sls for all minions
-
-			# salt top
-			# [https://docs.saltstack.com/en/latest/ref/states/top.html](https://docs.saltstack.com/en/latest/ref/states/top.html) 
-			
-			base: # environment
-			 '*': # match all minions
-			 - network
-			 test: # group to match
-			 - match: nodegroup # required for nodegroups
-			 - utils.etckeeper
 
 	- [ ]   `mkdir srv/salt/network` 
 	- [ ]   `touch srv/salt/network/init.sls` 
@@ -161,11 +174,22 @@ A state (.sls) file executes functions from state modules (salt.states). State m
 			 - mtu: 1450 # provider recommended mtu
 			
 
+	- [ ]  Update `srv/salt/top.sls` to append `- network` to `base: '*'` 
+
+			# salt top
+			# [https://docs.saltstack.com/en/latest/ref/states/top.html](https://docs.saltstack.com/en/latest/ref/states/top.html) 
+			
+			base: # environment
+			 '*': # match all minions
+			 - network
+			 'test*': # group to match
+			 - utils.etckeeper
+
 	- [ ]  Apply the network changes
 
 		We could dig around the 'network' module to see what network.managed does or we can just let etckeeper do the work.
 
-			salt-ssh -N test state.apply network
+			salt-ssh 'test*' state.apply network
 
 		In this case it changes the /etc/network/interfaces file.
 
@@ -216,9 +240,9 @@ A state (.sls) file executes functions from state modules (salt.states). State m
 
 			Applying a salt file or applying 'top.sls' also produces a summary of successes and failures which makes salt a test runner What is missing to complete the picture are setup and teardown. 
 
-			Setup will help identify dependencies that either need to be documented as requirements, or dealt with as part of the state file or package. Teardown will ensure that there is clean separation between this package and the setup of the next.
+			Setup will help identify dependencies that either need to be documented as requirements, or dealt with as part of the state file or package. Teardown will ensure that there is clean separation between this package and the setup of the next, and may also be useful aid when writing state migrations (transition to new state and reverse previous state).
 
-			Since salt provides most of the tools we need to do all these things in the state files themselves there seems no reason not to.
+			Since salt provides most of the tools we need to do all these things in the state files themselves there seems no reason not to even given some limitations.
 
 			# salt/network/test
 			
@@ -239,14 +263,14 @@ A state (.sls) file executes functions from state modules (salt.states). State m
 			# teardown
 			/etc/network/interfaces:
 			 file.copy:
-			 - source: /tmp/etc~network~interfaces
+			 - source: /etc/network/interfaces.orig
 			 - preserve: true
 			 - force: true
 			 
 			ip addr flush ens7:
 			 cmd.run
 
-	- [ ]   `salt-ssh -N test state.apply network.test` 
+	- [ ]   `salt-ssh 'test*' state.apply network.test` 
 
 		Run the test!
 
@@ -289,9 +313,9 @@ A state (.sls) file executes functions from state modules (salt.states). State m
 
 - [ ]  View the key value items to ensure you they are configured as expected
 
-		salt-ssh -N test pillar.items
+		salt-ssh 'test*' pillar.items
 		# ensure a specific value exists for the target
-		salt-ssh -N test pillar.get network:private_network_interface
+		salt-ssh 'test*' pillar.get network:private_network_interface
 
 	Now we need to use those pillar items in our state file.
 
@@ -300,8 +324,6 @@ A state (.sls) file executes functions from state modules (salt.states). State m
 - [ ]  Update `srv/network/init.sls` 
 
 	By default state files are compiled [jinja](http://jinja.pocoo.org/docs/dev/templates/) templates with some context variables thrown in. The first context variable we'll use is the _pillar_ context variable.
-
-	We're going to configure the internal private network interface that the provider offers.
 
 	[Understanding Jinja](https://docs.saltstack.com/en/latest/topics/jinja/index.html)
 
@@ -323,7 +345,7 @@ A state (.sls) file executes functions from state modules (salt.states). State m
 		 - ipaddr: {{ network.internal_ipaddr }}
 		 - netmask: {{ network.netmask }}
 
-	Using _pillar['network'] _ has a weakness; if the key doesn't exist the state file fails when we apply it. There's a way around that we'll use soon, but it's fine for this mandatory setting.
+	Using _pillar['network'] _ has a weakness; if the key doesn't exist the state file fails when we apply it.
 
 	There's also another issue; we haven't set a network:internal_ipaddr. That's because we don't want the same ip address for every minion.
 
@@ -337,18 +359,18 @@ A file_tree pillar is a pattern for applying a per-minion or per-group pillar fr
 		ext_pillar:
 		 - file_tree:
 		 		# remember the YAML double indent rule of dicts under lists!
-		 	root_dir: srv/pillar/minion
+		 	root_dir: srv/pillar/files
 
 	The file_tree pillar module serves directories and their children as key values pairs terminating in a file key with file contents as it's value. It can target hosts or nodegroups and gets merged with other pillars. We could use this pattern to store secrets for individual or groups of hosts, but in this case we'll use it as an overkill method for storing the private ipaddr of the host.
 
-	Note **there is a ** **[bug](https://github.com/saltstack/salt/issues/33069)** with hidden binary files like *.DS_Store breaking the file_tree pillar. Purge them.
+	Note **there is a ** **[bug](https://github.com/saltstack/salt/issues/33069)** with hidden binary files like *.DS_Store breaking the file_tree pillar. Purge them ( `find . -name '*.DS_Store' -type f -delete` ).
 
 - [ ]   `mkdir -p srv/pillar/minion/hosts/test-salt1.example.com/network` 
 - [ ]   `touch srv/pillar/minion/hosts/test-salt1.example.com/network/internal_ipaddr` 
 
 	Put your internal ip address in the file
 
-	- [ ]  Test the address is available `salt-ssh -N test pillar.get network:internal_ipaddr` 
+	- [ ]  Test the address is available `salt-ssh 'test*' pillar.get network:internal_ipaddr` 
 
 [pillar modules](https://docs.saltstack.com/en/latest/ref/pillar/all/index.html)
 
@@ -390,19 +412,6 @@ A file_tree pillar is a pattern for applying a per-minion or per-group pillar fr
 		 - srv/formulas/apt
 
 - [ ]  Configure locale formula
-	- [ ]  Append `- locale` to `base:'*'` in `srv/salt/top.sls` 
-
-			# salt top
-			# [https://docs.saltstack.com/en/latest/ref/states/top.html](https://docs.saltstack.com/en/latest/ref/states/top.html) 
-			
-			base: # environment
-			 '*': # match all minions
-			 - network
-			 - locale
-			 test: # group to match
-			 - match: nodegroup # required for nodegroups
-			 - utils.etckeeper
-
 	- [ ]  Append `- locale` to `base:'*'` in `srv/pillar/default/top.sls` 
 
 			# pillar top
@@ -414,7 +423,7 @@ A file_tree pillar is a pattern for applying a per-minion or per-group pillar fr
 
 	- [ ]   `touch srv/pillar/default/locale.sls` to configure the locale formula state.
 
-		By convention the formula's 'pillar.example' file documents a full example configuration. The locale.sls file will be merged with all the other pillar files so the name of the file doesn't really matter expect for consistency and clarity*. 
+		By convention the formula's 'pillar.example' file documents a full example configuration. The locale.sls file will be merged with all the other pillar files so the name of the file doesn't really matter expect for consistency and clarity. 
 
 			# pillar locale
 			
@@ -429,6 +438,18 @@ A file_tree pillar is a pattern for applying a per-minion or per-group pillar fr
 			 # LookupError: unknown encoding: utf_8_utf_8
 			 # Restart the minion after you corrected this!
 			 requires: 'en_AU.UTF-8 UTF-8' # replace with your own
+
+	- [ ]  Append `- locale` to `base:'*'` in `srv/salt/top.sls` 
+
+			# salt top
+			# [https://docs.saltstack.com/en/latest/ref/states/top.html](https://docs.saltstack.com/en/latest/ref/states/top.html) 
+			
+			base: # environment
+			 '*': # match all minions
+			 - network
+			 - locale
+			 'test*': # group to match
+			 - utils.etckeeper
 
 - [ ]  Configure timezone state
 	- [ ]  Append `- timezone` to `base:'*'` in `srv/pillar/default/top.sls` 
@@ -482,10 +503,9 @@ A file_tree pillar is a pattern for applying a per-minion or per-group pillar fr
 
 ## Jinja template logic
 
-There is a firewall module in salt which wraps firewalld. Although firewalld is available for Ubuntu, we're going to configure a simple ufw firewall using some simple jinja template logic because it's simpler to reason about and ufw is installed by default.
+There is a firewall module in salt which wraps firewalld. Although firewalld is available for Ubuntu, we're going to configure a simple ufw firewall using some simple jinja template logic because it's simpler to reason about and ufw is already installed by default on Ubuntu.
 
 - [ ]  Configure a firewall
-	- [ ]  Append `- firewall` to `base:'*'` in `srv/salt/top.sls` .
 	- [ ]  Append `- firewall` to `base:'*'` in `srv/pillar/default/top.sls` 
 	- [ ]   `mkdir srv/salt/firewall` 
 	- [ ]   `touch srv/salt/firewall/test.sls srv/salt/firewall/teardown.sls srv/salt/firewall/init.sls` 
@@ -493,9 +513,9 @@ There is a firewall module in salt which wraps firewalld. Although firewalld is 
 
 			# salt firewall
 			
-			# pillar.get variable without error if it's missing
+			# pillar.get('network:private_network_interface', None)
 			{% set internal_interface = salt['pillar.get'] ('network:private_network_interface') %} # default to None
-			{% set internal_network = salt ['pillar.get']('network:private_network', 'any') %} # default to 'any'
+			{% set internal_network = salt['pillar.get']('network:private_network', 'any') %} # default to 'any'
 			{% set public_interface = salt['pillar.get']('network:public_network_interface', 'any') %} # default to 'any'
 			
 			{% set ssh_sources = salt['pillar.get']('firewall:ssh_sources', []) %}
@@ -511,7 +531,6 @@ There is a firewall module in salt which wraps firewalld. Although firewalld is 
 			 cmd.run
 			{% endfor %}
 			{% else %}
-			# default to limit openssh
 			ufw allow openssh:
 			 cmd.run
 			{% endif %}
@@ -519,6 +538,24 @@ There is a firewall module in salt which wraps firewalld. Although firewalld is 
 			ufw --force enable:
 			 cmd.run
 			
+
+		The _salt['pillar.get'] _ is basically a chained python _{}.get()_ . For example _pillar.get('network:private_network_interface') _ would be _pillar.get('network', {}).get('private_network_interface')._ 
+
+		The rest of the jinja template should be fairly straightforward.
+
+	- [ ]   `touch srv/pillar/default/firewall.sls` 
+
+		We're configuring a near empty pillar just as a placeholder and to avoid warning messages when there's an actual missing pillar state file. 
+
+		To tighten your security which you should do given that we're logging in as root you would want to add a list of _ssh_sources _ to the firewall pillar.
+
+			# pillar firewall
+			
+			firewall:
+				#- ssh_sources:
+			 	#	- 0.0.0.0/24
+
+	- [ ]  Append `- firewall` to `base:'*'` in `srv/salt/top.sls` .
 
 ## Minion ids
 
@@ -538,8 +575,8 @@ There is a firewall module in salt which wraps firewalld. Although firewalld is 
 		 - openssh.config
 		 - firewall
 		 - hostsfile.hostname
-		 test: # group to match
-		 - match: nodegroup # required for nodegroups
+		 
+		 'test*': # group to match
 		 - utils.etckeeper
 
 - [ ]  Test the combined state.
@@ -560,6 +597,7 @@ At this point we have created a project that can bootstrap a baseline host that 
 - salt _top_ files
 - formulas
 - using and testing _pillars_ 
+- pillar _top_ files
 - external pillars 
 - using basic Jinja templating in state files
 - how minion ids are set
