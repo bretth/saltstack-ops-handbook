@@ -9,3 +9,6 @@ base:  # environment
     - apt.unattended
     - openssh.config
     - firewall
+
+  'test*':
+    - utils.etckeeper
