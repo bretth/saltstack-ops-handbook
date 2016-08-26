@@ -1,33 +1,29 @@
 # salt minion
 
-/etc/salt/pki:
-  file.directory:
-    - makedirs: True
-
 /etc/salt/pki/minion:
   file.directory:
     - mode: '0700'
+    - makedirs: True
 
-pre-seed minion public key:
+pre-seed minion public key once only:
   file.managed:
     - name: /etc/salt/pki/minion/minion.pub
     - contents_pillar: files:ssh:{{ grains['id'] }}.pub
-    - makedirs: True
     - replace: false
+    - unless:
+      - ls /etc/salt/pki/minion/minion.pub
 
-pre-seed minion key:
+pre-seed minion private key once only:
   file.managed:
     - name: /etc/salt/pki/minion/minion.pem
     - mode: '0600'
     - contents_pillar: files:ssh:{{ grains['id'] }}.pem
-    - makedirs: True
     - replace: false
     - unless:
       - ls /etc/salt/pki/minion/minion.pem
 
- 
-
-/etc/salt/minion: 
+deploy the minion configuration: 
   file.managed:
-    - source: salt://pre_seed_minion/templates/minion
+    - name: /etc/salt/minion
+    - source: salt://pre_seed_minion/templates/minion.yml
     - template: jinja

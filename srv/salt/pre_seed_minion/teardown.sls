@@ -1,7 +1,9 @@
 # salt minion.teardown
 
-/etc/salt/pki/minion:
-  file.absent
+teardown /etc/salt/pki/minion:
+  file.absent:
+    - name: /etc/salt/pki/minion
 
-/etc/salt/minion:
-  file.absent
+teardown /etc/salt/minion:
+  file.absent:
+    - name: /etc/salt/minion
