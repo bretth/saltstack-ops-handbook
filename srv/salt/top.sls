@@ -9,6 +9,7 @@ base:  # environment
     - apt.unattended
     - openssh.config
     - firewall
+    - hostsfile.hostname
 
   'test*':
     - utils.etckeeper
