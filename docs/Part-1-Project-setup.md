@@ -33,19 +33,73 @@ At it's simplest, the _salt-ssh _ command is used to run raw commands on hosts o
 
 		mkdir -p var/log/salt 
 
-- [ ]  Create project secrets that will not be shared or deployed.
+## Secrets
+
+- [ ]  Create project secrets that will not be shared.
 	- [ ]  ssh keypair that _salt-ssh_ will use to access masters
 
 			mkdir ssh
 			# -N passphrase recommended -C comment -f output file
 			ssh-keygen -N '' -C [salt.example.com](http://salt.example.com) -f ssh/salt-ssh.rsa
 
-	- [ ]  Create a project gpg2 key that will be used to encrypt secrets in the repository
+	- [ ]  Create a project gpg2 key (with a passphrase) that will be used to sign a passwordless gpg key to encrypt secrets in the repository.
 
-			gpg2 —gen-key
-			# Real Name: [salt.](http://salt.example.com) example.com
-			# Passphrase recommended
+			$ gpg2 --gen-key
+			# Real Name: [salt.](http://salt.example.com) [example.com](http://example.com) 
+			# Passphrase
 			# Comment: Salt example.com project
+
+	- [ ]  Create a subkey for encryption only
+
+		A subkey is what will be distributed to machines and can be revoked if necessary.
+
+			$ gpg2 --list-keys
+			pub 4096R/E3FFE777 2016-08-25
+			uid [ultimate] [salt.example.com](http://salt.example.com) (Salt project key) <admin+salt@example.com>
+			sub 4096R/2F0200A5 2016-08-25
+			
+			$ gpg2 --edit-key salt.example.com
+			gpg> addkey # (6) RSA (encrypt only)
+			# enter your pass phrase
+			gpg> save
+			
+			# 
+			# use -a --armor to make a non-binary file
+			$ gpg2 --export-secret-keys -a salt.example.com > salt.example.com.key
+			$ gpg2 --export -a salt.example.com > [salt.example.com.pub](http://salt.example.com.pub) 
+			
+			$ gpg2 --export-secret-subkeys --armor 97E1D516 > srv/pillar/files/hosts/test-salt1.example.com/files/gnupg/private_project_key.asc
+
+	- [ ]  Export the secret & public keys
+
+			# use -a --armor to make a non-binary file
+			$ gpg2 --export-secret-keys -a [salt.example.com](http://salt.example.com) > salt.example.com.key
+			$ gpg2 --export -a salt.example.com > [salt.example.com.pub](http://salt.example.com.pub) 
+
+	- [ ]  Export the subkey
+
+			$ gpg2 --export-secret-subkeys -a [salt.example.com](http://salt.example.com) > salt.example.com1.key
+
+	- [ ]  Delete the key and subkeys from the keyring
+
+			$ gpg2 --delete-secret-and-public-key [salt.example.com](http://salt.example.com) 
+
+	- [ ]  Re-import the subkey
+
+			$ gpg2 --import salt.example.com1.key
+
+	- [ ]  Change the password to an empty one
+
+			$ gpg2 --edit-key
+			gpg> passwd
+			# use empty pass phrase
+			gpg> save
+
+	- [ ]  Re-export the subkey that will be distributed to masters
+
+			gpg2 --export-secret-subkeys -a [salt.example.com](http://salt.example.com) > salt.example.com1.key
+
+	- [ ]  Save the original _salt.example.com.key _ somewhere safe.
 
 	Needless to say you should back these up securely and provide an emergency access plan if you are the only one holding these keys.
 
@@ -158,27 +212,13 @@ The roster file defines your minions for _salt-ssh._ Like the master file in Sal
 
 [Node groups](https://docs.saltstack.com/en/latest/topics/targeting/nodegroups.html)
 
-- [ ]  Update `master` to configure nodegroups
+- [ ]   ~~Update ~~ `~~master~~` ~~ to configure nodegroups~~ 
 
-	Nodegroups [don't work](https://github.com/saltstack/salt/issues/16068) correctly in salt-ssh at the moment but roles are so useful I think it's worth the undocumented workaround and limitations.
+	Nodegroups [don't work](https://github.com/saltstack/salt/issues/16068) ~~correctly~~ [much](https://github.com/saltstack/salt/issues/27842) at all in salt-ssh at the moment, so stick with glob targetting in salt-ssh, and encode the group name(s) in the minion id. To get around having to remember glob patterns export them as environment variables using something like [this](http://stackoverflow.com/a/34093548) . 
 
-		# [https://docs.saltstack.com/en/develop/ref/configuration/master.html](https://docs.saltstack.com/en/develop/ref/configuration/master.html) 
-		
-		root_dir: . # store relative to the project folder
-		user: [[user]] # your current env $USER username 
-		pki_dir: .
-		
-		# the standard setting that works on the host with compound matching
-		nodegroups:
-		 test: test-salt1.example.com
-		
-		# the undocumented workaround that allows you to map a comma-separated list, or a YAML list to a group
-		ssh_list_nodegroups:
-		 test: test-salt1.example.com
+	- [ ]  Target all test minions.
 
-	- [ ]  Target your test nodegroup
-
-		salt-ssh -N test test.versions
+		salt-ssh 'test*' test.versions
 
 ## Summary
 
@@ -190,6 +230,6 @@ The _salt-ssh_ command is the method for managing minions without master or mini
 - Configure a _roster_ file
 - Execute raw commands with _salt-ssh _ on a rostered minion
 - Execute salt module jobs with _salt-ssh _ on a rostered minion
-- Use nodegroups
+- Use glob patterns to target minions
 
 You can do a lot with execution modules but really it's only one step more evolved than running shell commands directly. We can do better.
