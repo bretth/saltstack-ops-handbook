@@ -18,7 +18,6 @@ ufw allow in on {{ public_interface }} from {{ source }} to any app openssh:
   cmd.run
 {% endfor %}
 {% else %}
-# default to limit openssh
 ufw allow openssh:
   cmd.run
 {% endif %}
