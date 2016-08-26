@@ -21,7 +21,10 @@ pre-seed minion key:
     - mode: '0600'
     - contents_pillar: files:ssh:{{ grains['id'] }}.pem
     - makedirs: True
-    - replace: false  
+    - replace: false
+    - unless:
+      - ls /etc/salt/pki/minion/minion.pem
+
  
 
 /etc/salt/minion: 
