@@ -8,3 +8,4 @@ base:
     - apt
     - openssh
     - firewall
+    - project
