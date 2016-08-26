@@ -4,11 +4,11 @@
 
  _To understand how to use this living handbook template there is a _ [_short guide you should read first_](https://www.notion.so/About-the-Ops-Handbook-for-97a8b1ac4c4340bd86b9c205ac8399b9) _._ 
 
-This is a gentle tutorial to SaltStack, a python tool for infrastructure management, orchestration and all the other buzzwords for configuring servers and deploying code. The guide introduces the fundamentals of SaltStack by giving it the inception treatment, bootstrapping a master and minion with the _salt-ssh_ command. It also aims to explore some conventions for solo developers or small teams to structure and manage a saltstack project.
+This is a gentle tutorial to SaltStack, a python tool for infrastructure management, orchestration and all the other buzzwords for configuring servers and deploying code. The guide introduces the fundamentals of SaltStack by giving it the inception treatment, bootstrapping a master and minion with the _salt-ssh_ command. It also aims to explore some sustainable [12factorapp](http://12factor.net) conventions for small projects to structure and manage a saltstack project. 
 
-A [github repository](https://github.com/bretth/saltstack-ops-handbook) accompanies this guide with a branch for each part if you wish to clone and replace the variables with your own.
+A [github repository](https://github.com/bretth/saltstack-ops-handbook) accompanies this guide with a branch for each part if you wish to clone and replace the variables with your own. I encourage you to report bugs, add feature requests, and even ask for help as an issue if something is unclear.
 
-It makes better sense to [follow these docs on notion](https://www.notion.so/SaltStack-Ops-Handbook-for-example-com-6649fb3cce8f4817a504975f0c237163) .
+It also makes better sense to [follow these docs on notion](https://www.notion.so/SaltStack-Ops-Handbook-for-example-com-6649fb3cce8f4817a504975f0c237163) .
 
 [SaltStack automation for CloudOps, ITOps & DevOps at scale](https://saltstack.com)
 
@@ -18,7 +18,9 @@ It makes better sense to [follow these docs on notion](https://www.notion.so/Sal
 
 [Part 2 - Creating a Baseline Environment](./Part-2-Creating-a-Baseline-Environment-8dc4d3c36d354b4c82f355099ea380d0.md)
 
-[Part 3 - Installing the master & minion](./Part-3-Installing-the-master-minion-76c769d7b1994a669d0aafd698cc8635.md)
+[Part 3 - Installing a masterless minion](./Part-3-Installing-a-masterless-minion-76c769d7b1994a669d0aafd698cc8635.md)
+
+[Part 4 - Installing a master](./Part-4-Installing-a-master-2c7efaab4de44d1bb77b79b78a765313.md)
 
 ... more to come .. probably slowly.
 
@@ -26,12 +28,12 @@ It makes better sense to [follow these docs on notion](https://www.notion.so/Sal
 
 I am not a SaltStack expert or orchestration professional, so this is an entry level guide written by a beginner. I have prior experience with [Fabric](http://www.fabfile.org) and more recently [Ansible](https://www.ansible.com) , and was keen to try SaltStack but found the documentation pretty haphazard; a side-effect no-doubt of it's rapid evolution. 
 
-This small project serves a few purposes. The first was to experiment with [notion.so](http://notion.so) as a tool for writing company procedures and operational handbooks; the second, to explore a different process for documentation driven projects that improve the transfer of knowledge. Finally, of course I wanted to better understand the world of salt.
+This small project serves a few purposes. The first was to experiment with [notion.so](http://notion.so) as a tool for writing company procedures and operational handbooks; the second, to explore a different process for documentation driven projects that improve the transfer and re-transfer of knowledge. Finally, of course I wanted to better understand the world of salt.
 
 — Brett
 
 ## Copyright
 
-Brett Haydon
+Brett Haydon 2016
 
  [https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/)
