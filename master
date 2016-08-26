@@ -1,14 +1,14 @@
 # https://docs.saltstack.com/en/develop/ref/configuration/master.html
 
 root_dir: .  # store relative to the project folder
-user: [[user]] # your current env $USER username 
+user: bretth # your current env $USER username 
 pki_dir: .
 
 state_output: changes
 
 file_roots:
   base:  # Environment. base is the default. 
-    - srv/salt  # path to a package distribution
+    - srv/salt  # path to a package
     - srv/formulas/locale
     - srv/formulas/timezone
     - srv/formulas/hostsfile
