@@ -1,7 +1,7 @@
 # https://docs.saltstack.com/en/develop/ref/configuration/master.html
 
 root_dir: .  # store relative to the project folder
-user: [[user]] # your current env $USER username 
+user: bretth # your current env $USER username 
 pki_dir: .
 
 state_output: changes

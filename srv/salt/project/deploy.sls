@@ -1,7 +1,6 @@
 # salt project.deploy
 
 {% set projectname = pillar['project']['name'] %}
-{% set branch = salt['pillar.get']('project:branch', 'master') %}
 
 {% if salt['pillar.get']('masterless', True) %}
 create the clone that pulls from the bare repo:
