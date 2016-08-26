@@ -9,7 +9,7 @@ A masterless minion can be used as the basis for a scaled out architecture.
 ## Grains
 
 - [ ]   `mkdir -p srv/salt/pre_seed_minion/templates` 
-- [ ]   `touch srv/salt/pre_seed_minion/templates/minion` config file
+- [ ]   `touch srv/salt/pre_seed_minion/templates/minion.yml` config file
 
 		# minion configuration
 		
@@ -73,31 +73,46 @@ When a minion starts up the first time it will autocreate a keypair to use for e
 
 		# salt minion
 		
-		/etc/salt/pki:
-		 file.directory:
-		 - makedirs: True
-		
 		/etc/salt/pki/minion:
 		 file.directory:
 		 - mode: '0700'
+		 - makedirs: True
 		
-		pre-seed minion public key:
+		pre-seed minion public key once only:
 		 file.managed:
 		 - name: /etc/salt/pki/minion/minion.pub
 		 - contents_pillar: files:ssh:{{ grains['id'] }}.pub
-		 - makedirs: True
+		 - replace: false
+		 - unless:
+		 - ls /etc/salt/pki/minion/minion.pub
 		
-		pre-seed minion key:
+		pre-seed minion private key once only:
 		 file.managed:
 		 - name: /etc/salt/pki/minion/minion.pem
+		 - mode: '0600'
 		 - contents_pillar: files:ssh:{{ grains['id'] }}.pem
-		 - makedirs: True
+		 - replace: false
+		 - unless:
+		 - ls /etc/salt/pki/minion/minion.pem
 		
-		/etc/salt/minion: 
+		deploy the minion configuration: 
 		 file.managed:
-		 - source: salt://pre_seed_minion/templates/minion
+		 - name: /etc/salt/minion
+		 - source: salt://pre_seed_minion/templates/minion.yml
 		 - template: jinja
 		 
+
+- [ ]   `touch srv/salt/pre_seed_minion/teardown.sls` 
+
+		# salt minion.teardown
+		
+		teardown /etc/salt/pki/minion:
+		 file.absent:
+		 - name: /etc/salt/pki/minion
+		
+		teardown /etc/salt/minion:
+		 file.absent:
+		 - name: /etc/salt/minion
 
 - [ ]  Append `pre_seed_minion` to `base:'*-salt*'` in `srv/salt/top.sls` .
 
@@ -154,7 +169,7 @@ When a minion starts up the first time it will autocreate a keypair to use for e
 		 - srv/formulas/apt
 		 - srv/formulas/salt
 
-## Requsites & State Order
+## Requsites, State Order & Include
 
 - [ ]  Create a package to wrap salt.minion and salt.pkgrepo
 
@@ -169,14 +184,17 @@ When a minion starts up the first time it will autocreate a keypair to use for e
 
 			# salt local_salt_minion
 			
-			include:
-			 - salt.pkgrepo
-			 - salt.minion
+			include: # execute recursively
+			 - salt.pkgrepo # execute first 
+			# 'salt.pkgrepo.ubuntu' included by salt.pkgrepo is executed second
+			 - salt.minion # execute third
 			
-			python-apt:
+			python-apt: # execute fourth
 			 pkg.installed:
 			 - require_in:
 			 - pkgrepo: saltstack-pkgrepo
+
+		 _Include_ is the state file equivalent of a python import. The key difference to python import is that because state files are ordered for execution, the include always comes first, with the exception o requisite functions.
 
 	- [ ]   `touch srv/salt/local_salt_minion/test.sls` 
 
@@ -230,7 +248,7 @@ When a minion starts up the first time it will autocreate a keypair to use for e
 
 	The _salt-call _ command is the command run on the minion regardless of whether it's a standalone minion, recipient of a salt-ssh command or taking jobs from a master. 
 
-- [ ]   `touch srv/salt/gitfs_project/init.sls` 
+- [ ]   `touch srv/salt/project/init.sls` 
 
 		# salt selfservice
 		
@@ -254,13 +272,6 @@ When a minion starts up the first time it will autocreate a keypair to use for e
 		 git.present:
 		 - name: /srv/git/{{ projectname }}
 		 - bare: true
-		
-		create the clone that pulls from the bare repo:
-		 git.latest:
-		 - name: /srv/git/{{ projectname }}
-		 - target: /srv/releases/{{ projectname }}
-		 - force_reset: true # hard reset to allow anything to be cloned
-		 - depth: 1
 
 - [ ]   `touch /srv/pillar/project.sls` 
 
@@ -268,6 +279,22 @@ When a minion starts up the first time it will autocreate a keypair to use for e
 		
 		project: 
 		 name: [salt.example.com](http://salt.example.com) 
+
+- [ ]   `touch srv/salt/project/deploy.sls` 
+
+		# salt project.deploy
+		
+		{% set projectname = pillar['project']['name'] %}
+		
+		{% if salt['pillar.get']('masterless', True) %}
+		create the clone that pulls from the bare repo:
+		 git.latest:
+		 - name: /srv/git/{{ projectname }}
+		 - target: /srv/releases/{{ projectname }}
+		 - submodules: true
+		 - force_reset: true
+		 - depth: 1
+		{% endif %}
 
 - [ ]  Update `srv/salt/pre_seed_minion/templates/minion` 
 
@@ -277,10 +304,8 @@ When a minion starts up the first time it will autocreate a keypair to use for e
 		
 		{% set srv = ['/srv/releases/', pillar['project']['name'], '/srv']|join %} 
 		
-		
 		{% if salt['pillar.get']('masterless', True) %}
 		file_client: local # default 'remote'
-		
 		
 		file_roots:
 		 base: # Environment. base is the default. 
@@ -329,7 +354,7 @@ Regardless of whether we're using a master or salt-ssh, _salt-call _ is what wil
 
 ## Summary
 
-Although we could survive just with _salt-ssh _ managing _ _ infrastructure, creating a minion daemon could be the basis for scaled out masterless architecture. We used a local git repository to push to but with a little modification we could auto-deploy from a remote with cron.
+Although we could survive just with _salt-ssh_ , creating a minion daemon could be the basis for a scaled out masterless architecture. We used a local git repository to push to but with a little modification we could auto-deploy from a remote with cron.
 
 At this point we have created a project that can bootstrap a standalone masterless minion with salt-ssh and have everything under version control. 
 

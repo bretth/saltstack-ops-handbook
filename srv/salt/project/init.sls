@@ -2,11 +2,6 @@
 
 {% set projectname = pillar['project']['name'] %}
 
-install pygit2 and dependencies:
-  pkg.installed:
-    - name: libgit2-24
-    - name: python-pygit2
-
 /srv/git:
   file.directory:
     - makedirs: true 
